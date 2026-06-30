@@ -1,3 +1,4 @@
+ 
 import pandas as pd
 from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
@@ -10,9 +11,10 @@ from langchain_openai import ChatOpenAI
 from langchain_community.retrievers import BM25Retriever
 from langchain_classic.retrievers import EnsembleRetriever
 from sklearn.metrics.pairwise import cosine_similarity
-from langchain_ollama import ChatOllama
 import json
+from langchain_ollama import ChatOllama
 
+ 
 diseases_df = pd.read_csv('./SympScan - Symptomps to Disease/Diseases_and_Symptoms_dataset.csv', encoding='utf-8')
 
 diseases_docs = []
@@ -27,10 +29,12 @@ for benh in ten_benh:
     doc=Document(page_content=chi_tiet_benh,metadata={"source":"Diseases_and_Symptoms_dataset.csv"})
     diseases_docs.append(doc)
 
+ 
 description_df = pd.read_csv('SympScan - Symptomps to Disease/description.csv', encoding='utf-8')
 description_docs = description_df.astype(str).apply(lambda x: ": ".join(x), axis=1)
 description_docs= [Document(page_content=text, metadata={"source":"description.csv"}) for text in description_docs]
 
+ 
 diets_df = pd.read_csv('SympScan - Symptomps to Disease/diets.csv', encoding='utf-8')
 diets_df['Ăn kiêng'] = diets_df['Ăn kiêng'].astype(str)
 diets_docs = []
@@ -45,6 +49,7 @@ for benh in ten_benh:
     doc=Document(page_content=cac_che_do_an,metadata={"source":"diets.csv"})
     diets_docs.append(doc)
 
+ 
 medications_df = pd.read_csv('SympScan - Symptomps to Disease/medications.csv', encoding='utf-8')
 medications_df['Thuốc'] = medications_df['Thuốc'].astype(str)
 medications_docs = []
@@ -59,6 +64,7 @@ for benh in ten_benh:
     doc=Document(page_content=cac_thuoc_nen_uong,metadata={"source":"medications.csv"})
     medications_docs.append(doc)
 
+ 
 precautions_df = pd.read_csv('SympScan - Symptomps to Disease/precautions.csv')
 cols = ['Biện pháp phòng ngừa_1', 'Biện pháp phòng ngừa_2', 'Biện pháp phòng ngừa_3', 'Biện pháp phòng ngừa_4']
 df = precautions_df[cols].astype(str).agg(', '.join, axis=1)
@@ -70,6 +76,7 @@ for i, benh in enumerate(ten_benh):
     doc=Document(page_content=bien_phap,metadata={"source":"precautions_.csv"})
     precautions_docs.append(doc)
 
+ 
 workout_df = pd.read_csv('SympScan - Symptomps to Disease/workout.csv')
 workout_df['Bài tập'] = workout_df['Bài tập'].astype(str)
 workout_docs = []
@@ -83,12 +90,14 @@ for benh in ten_benh:
     doc=Document(page_content=cac_bai_tap,metadata={"source":"workout.csv"})
     workout_docs.append(doc)
 
+ 
 embedding_model = HuggingFaceEmbeddings(
     model_name="keepitreal/vietnamese-sbert", 
-    model_kwargs={'device': 'cpu', 'local_files_only': True},   
+    model_kwargs={'device': 'cuda', 'local_files_only': True},   
     encode_kwargs={'normalize_embeddings': True}
 )
 
+ 
 diseases_vectorstore = FAISS.load_local(
     'diseases_vectorstore',
     embeddings=embedding_model,
@@ -120,14 +129,17 @@ workout_vectorstore = FAISS.load_local(
     allow_dangerous_deserialization=True
 )
 
+ 
 def bm25(doc):
     bm25_retriever = BM25Retriever.from_documents(doc)
     bm25_retriever.k = 5
     return bm25_retriever
 
+ 
 def format_docs(documents):
     return "\n\n".join(doc.page_content for doc in documents)
 
+ 
 def prompt_chat(x, y):
     prompt = ChatPromptTemplate.from_messages([
     SystemMessagePromptTemplate.from_template(x),
@@ -135,18 +147,12 @@ def prompt_chat(x, y):
     ])
     return prompt
 
+ 
 # llm = ChatOpenAI(
 #     base_url='http://localhost:11434/v1/',
 #     api_key='ollama',
 #     model='qwen2.5:3b',
 #     temperature=0,
-#     model_kwargs={
-#         "options": {
-#             "num_ctx": 1024,
-#             "num_predict": 256,
-#             "num_gpu": 0 
-#         }
-#     }
 # )
 llm = ChatOllama(
     model="qwen2.5:3b",
@@ -156,6 +162,7 @@ llm = ChatOllama(
     temperature=0
 )
 
+ 
 def diseases_predict(question):
     retriever = diseases_vectorstore.as_retriever(
     search_type='similarity',
@@ -263,6 +270,7 @@ def diseases_predict(question):
         # answer=rag_chain.invoke({'context':tong_hop, 'question':question})
         print(answer)
 
+ 
 def ask_description(question):
     retriever = description_vectorstore.as_retriever(
     search_type='similarity',
@@ -370,7 +378,9 @@ def ask_description(question):
             # for dis in ask_dis_embed:
             #     if cosine_similarity([dis], [dis_embed])[0][0] >=0.75:
             #         tong_hop += f'{doc.page_content}\n'
-            if cosine_similarity([ask_dis_embed], [dis_embed])[0][0] >=0.95:
+            if cosine_similarity([ask_dis_embed], [dis_embed])[0][0] >=0.75:
+                if doc.page_content in tong_hop:
+                    continue
                 tong_hop += f'{doc.page_content}\n'
     if len(tong_hop)==0:
         print('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với các triệu chứng của bạn')
@@ -379,6 +389,7 @@ def ask_description(question):
     answer=rag_chain.invoke({'context':tong_hop, 'question':question})
     print(answer)
 
+ 
 def ask_diets(question):
     retriever = diets_vectorstore.as_retriever(
     search_type='similarity',
@@ -487,6 +498,8 @@ def ask_diets(question):
             #     if cosine_similarity([dis], [dis_embed])[0][0] >=0.75:
             #         tong_hop += f'{doc.page_content}\n'
             if cosine_similarity([ask_dis_embed], [dis_embed])[0][0] >=0.75:
+                if doc.page_content in tong_hop:
+                    continue
                 tong_hop += f'{doc.page_content}\n'
     if len(tong_hop)==0:
         print('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với các triệu chứng của bạn')
@@ -495,6 +508,7 @@ def ask_diets(question):
     answer=rag_chain.invoke({'context':tong_hop, 'question':question})
     print(answer)
 
+ 
 def ask_medications(question):
     retriever = medications_vectorstore.as_retriever(
     search_type='similarity',
@@ -603,6 +617,8 @@ def ask_medications(question):
             #     if cosine_similarity([dis], [dis_embed])[0][0] >=0.75:
             #         tong_hop += f'{doc.page_content}\n'
             if cosine_similarity([ask_dis_embed], [dis_embed])[0][0] >=0.75:
+                if doc.page_content in tong_hop:
+                    continue
                 tong_hop += f'{doc.page_content}\n'
     if len(tong_hop)==0:
         print('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với các triệu chứng của bạn')
@@ -611,6 +627,7 @@ def ask_medications(question):
     answer=rag_chain.invoke({'context':tong_hop, 'question':question})
     print(answer)
 
+ 
 def ask_precautions(question):
     retriever = precautions_vectorstore.as_retriever(
     search_type='similarity',
@@ -720,6 +737,8 @@ def ask_precautions(question):
             #     if cosine_similarity([dis], [dis_embed])[0][0] >=0.75:
             #         tong_hop += f'{doc.page_content}\n'
             if cosine_similarity([ask_dis_embed], [dis_embed])[0][0] >=0.75:
+                if doc.page_content in tong_hop:
+                    continue
                 tong_hop += f'{doc.page_content}\n'
     if len(tong_hop)==0:
         print('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với các triệu chứng của bạn')
@@ -728,6 +747,7 @@ def ask_precautions(question):
     answer=rag_chain.invoke({'context':tong_hop, 'question':question})
     print(answer)
 
+ 
 def ask_workout(question):
     retriever = workout_vectorstore.as_retriever(
     search_type='similarity',
@@ -837,6 +857,8 @@ def ask_workout(question):
             #     if cosine_similarity([dis], [dis_embed])[0][0] >=0.75:
             #         tong_hop += f'{doc.page_content}\n'
             if cosine_similarity([ask_dis_embed], [dis_embed])[0][0] >=0.75:
+                if doc.page_content in tong_hop:
+                    continue
                 tong_hop += f'{doc.page_content}\n'
     if len(tong_hop)==0:
         print('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với các triệu chứng của bạn')
@@ -845,6 +867,7 @@ def ask_workout(question):
     answer=rag_chain.invoke({'context':tong_hop, 'question':question})
     print(answer)
 
+ 
 def ask_symptom(question):
     retriever = diseases_vectorstore.as_retriever(
     search_type='similarity',
@@ -954,6 +977,8 @@ def ask_symptom(question):
             #     if cosine_similarity([dis], [dis_embed])[0][0] >=0.75:
             #         tong_hop += f'{doc.page_content}\n'
             if cosine_similarity([ask_dis_embed], [dis_embed])[0][0] >=0.75:
+                if doc.page_content in tong_hop:
+                    continue
                 tong_hop += f'{doc.page_content}\n'
     if len(tong_hop)==0:
         print('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với các triệu chứng của bạn')
@@ -962,6 +987,7 @@ def ask_symptom(question):
     answer=rag_chain.invoke({'context':tong_hop, 'question':question})
     print(answer)
 
+ 
 question = input('You: ')
 if ('bị bệnh' in question) or ('bị' and 'bệnh gì' in question) or ('bị gì' in question):
     diseases_predict(question)
@@ -973,7 +999,7 @@ elif 'thuốc' in question or 'uống' in question:
     ask_medications(question)
 elif 'làm' in question or 'phòng' in question or 'ngừa' in question:
     ask_precautions(question)
-elif 'tập' in question or 'luyện' in question:
+elif 'tập' in question or 'luyện' in question or 'vận động' in question:
     ask_workout(question)
 elif 'triệu chứng' in question:
     ask_symptom(question)
