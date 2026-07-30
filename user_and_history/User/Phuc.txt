@@ -1,0 +1,8 @@
+User:viêm tai giữa là bệnh gì?
+Bot:Viêm tai giữa là một bệnh nhiễm trùng tai giữa thường gặp ở trẻ em, gây đau tai, sốt, cáu gắt và đôi khi có dịch chảy ra từ tai. 
+
+Câu hỏi gốc của bạn đã được trả lời. Nếu bạn cần thêm thông tin về viêm tai ngoài hoặc các vấn đề khác liên quan đến tai, vui lòng cho tôi biết.
+User:bệnh đó nên uống thuốc gì
+Bot:Căn bệnh mà bạn đang muốn tìm hiểu là viêm tai giữa. Đối với điều trị, hệ thống gợi ý sử dụng Amoxicillin hoặc Cefdinir để kháng sinh, Acetaminophen để giảm đau, cùng với thuốc thông mũi và mở thông màng nhĩ nếu tái phát.
+
+Nếu bạn gặp phải các triệu chứng như đau đầu, sốt, khó chịu khi nghe âm thanh, hãy đến cơ sở y tế hoặc gặp bác sĩ để được thăm khám trực tiếp. Đây chỉ là thông tin tham khảo từ hệ thống.

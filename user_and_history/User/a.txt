@@ -1,0 +1,47 @@
+User:viêm tai giữa nên uống thuốc gì
+Bot:Viêm tai giữa nên sử dụng các loại thuốc sau:
+- Amoxicillin
+- Cefdinir
+- Acetaminophen để giảm đau
+- Thuốc thông mũi
+- Mở thông màng nhĩ (nếu tái phát)
+
+Lời khuyên: Bạn nên đến cơ sở y tế hoặc gặp bác sĩ để thăm khám trực tiếp, đây chỉ là thông tin tham khảo từ hệ thống.
+User:bệnh đó có triệu chứng gì
+Bot:Căn bệnh mà bạn đang muốn tìm hiểu là Viêm tai giữa. Các triệu chứng thường gặp bao gồm:
+- Đau họng
+- Giảm thính lực
+- Nôn mửa
+- Đau tai
+- Cảm giác tắc tai
+- Sốt
+- Ho
+- Sổ mũi
+- Kéo tai
+- Nghẹt mũi
+- Dịch trong tai
+
+Nếu bạn đang gặp các triệu chứng này, tôi khuyên bạn nên đến cơ sở y tế hoặc gặp bác sĩ để được thăm khám trực tiếp.
+User:bệnh vẩy nến là bệnh gì?
+Bot:Bệnh vẩy nến là một bệnh da tự miễn mãn tính, gây ra sự phát triển nhanh chóng của tế bào da. Các triệu chứng bao gồm các mảng da dày, có vảy, màu đỏ, thường xuất hiện ở khuỷu tay, đầu gối atau da đầu.
+
+Lời khuyên: Nếu bạn đang gặp phải những triệu chứng này, bạn nên đến các cơ sở y tế hoặc gặp bác sĩ để thăm khám trực tiếp, đây chỉ là thông tin tham khảo từ hệ thống.
+User:bệnh vẩy nến có triệu chứng gì
+Bot:Bệnh vẩy nến có các triệu chứng như:
+- Da có biểu hiện bất thường
+- Tổn thương da
+- U da
+- Nốt ruồi trên da
+- Đau khớp
+- Da khô
+- Ngứa da đầu
+- Sưng da
+- Đóng vảy hoặc thô ráp
+- Da đầu không đều
+- Ngứa da
+
+Lời khuyên: Nếu bạn đang gặp các triệu chứng này, bạn nên đến các cơ sở y tế hoặc gặp bác sĩ để thăm khám trực tiếp, đây chỉ là thông tin tham khảo từ hệ thống.
+User:bệnh đó nên uống thuốc nào
+Bot:Căn bệnh mà bạn đang muốn tìm hiểu là vẩy nến. Dựa trên thông tin từ hệ thống Python, các phương pháp điều trị có thể bao gồm Corticosteroid bôi ngoài da, Các chất tương tự Vitamin D (ví dụ: Calcipotriol), Methotrexate, Thuốc sinh học (ví dụ: Adalimumab) và Liệu pháp quang trị liệu (UVB). 
+
+Tôi khuyên bạn nên đến các cơ sở y tế hoặc gặp bác sĩ để thăm khám trực tiếp, vì đây chỉ là thông tin tham khảo từ hệ thống.

@@ -1,0 +1,17 @@
+User:tôi bị mệt mỏi, nôn mửa, chán ăn, nước tiểu ít, khó thở là bệnh gì
+Bot:Qua các triệu chứng bạn chia sẻ, hệ thống nhận thấy bạn đang gặp phải một số tình trạng sức khỏe tiềm năng. Dựa vào thông tin từ hệ thống Python, hai bệnh có nguy cơ cao nhất mà hệ thống kết luận là viêm tiểu phế quản cấp tính và nhiễm trùng huyết.
+
+Viêm tiểu phế quản cấp tính có các triệu chứng khớp với mô tả của bạn bao gồm: ho, nghẹt mũi, trẻ sơ sinh cáu kỉnh, nôn mửa, thở khò khè, chán ăn, sốt, khó thở, kéo tai, đau khi thở, sổ mũi, thở ngắn. 
+
+Nhiễm trùng huyết cũng có các triệu chứng khớp với mô tả của bạn bao gồm: nôn mửa, chán ăn, khó thở.
+
+Hệ thống không tìm thấy bất kỳ bệnh cụ thể nào khác mà chỉ có 3 triệu chứng khớp với mô tả của bạn. Tuy nhiên, để xác định chính xác tình trạng sức khỏe của bạn, việc tham khảo ý kiến bác sĩ chuyên khoa là rất quan trọng. 
+
+Nếu bạn đang gặp phải các triệu chứng này, hãy liên hệ với bác sĩ ngay lập tức để được tư vấn và
+User:bệnh đó là bệnh gì
+Bot:Tôi hiểu bạn đang quan tâm đến các bệnh viêm tiểu phế quản cấp tính và nhiễm trùng huyết. 
+
+- Viêm tiểu phế quản cấp tính là một tình trạng thường gặp ở trẻ sơ sinh, do virus gây ra, dẫn đến các triệu chứng như thở khò khè, ho và khó thở.
+- Nhiễm trùng huyết là phản ứng đe dọa tính mạng đối với nhiễm trùng, trong đó hệ thống miễn dịch của cơ thể gây ra viêm lan rộng, dẫn đến tổn thương mô, suy nội tạng và có thể dẫn đến tử vong.
+
+Tôi khuyên bạn nên đến các cơ sở y tế hoặc gặp bác sĩ để thăm khám trực tiếp, vì đây chỉ là thông tin tham khảo từ hệ thống.

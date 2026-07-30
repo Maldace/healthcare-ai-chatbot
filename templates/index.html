@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Advanced Real-Time Chat</title>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+		<link
+			rel="stylesheet"
+			href="{{ url_for('static', filename='styles.css') }}">
+
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+	</head>
+	<body>
+		<h2>Welcome, <span id="username">{{ username }}</span>!</h2>
+		<div class="container">
+			<div class="sidebar">
+				<div class="room-list" id="room-list">
+					<h3>Chat</h3>
+					{% for room in rooms %}
+						{% if room != 'General' %}
+					<div class="chat-contain">
+					<div id="room-item" class="room-item" onclick="joinRoom('{{ room }}')">
+							{{ room }}
+					</div>
+					<button class="btn" onclick="openEditDialog('{{ room }}')" ><i class="fa fa-edit"></i></button>
+					
+					<button class="btn" onclick="deleteRoom('{{ room }}')"><i class="fa fa-trash"></i></button>
+					<!-- </div> -->
+					</div>
+						{% endif %}
+					{% endfor %}
+					<dialog id="edit-dialog">
+						<h3>Name of the chat:</h3>
+
+						<input type="text" id="editting-name">
+
+						<br><br>
+
+						<button onclick="editRoomName()">Rename</button>
+						<button onclick="document.getElementById('edit-dialog').close()">Cancel</button>
+					</dialog>
+				</div>
+				<div class="outer">
+					<button id="showbtn" onclick="document.getElementById('dialog').showModal()">
+						Add a chat
+					</button>
+
+					<dialog id="dialog">
+						<h3>Name of the chat:</h3>
+
+						<input type="text" id="name">
+
+						<br><br>
+
+						<button onclick="createNewChat()">Create</button>
+						<button onclick="document.getElementById('dialog').close()">Cancel</button>
+					</dialog>
+				</div>
+			</div>
+			<div class="main-chat">
+				<div id="chat"></div>
+				<div class="input-area">
+					<input
+						id="message"
+						type="text"
+						placeholder="Type a message..."
+						onkeypress="handleKeyPress(event)"
+					/>
+					<button onclick="sendMessage()">Send</button>
+				</div>
+			</div>
+		</div>
+		<script src="{{ url_for('static', filename='chat.js') }}"></script>
+	</body>
+</html>
