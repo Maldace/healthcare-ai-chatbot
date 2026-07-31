@@ -27,23 +27,6 @@ class Config:
     DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 't')
     CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '*')
 
-    # path = "user_and_history/User"
-    # CHAT_ROOMS = []
-
-    # # dirs=directories
-    # for (root, dirs, file) in os.walk(path):
-    #     for f in file:
-    #         if '.txt' in f:
-    #             CHAT_ROOMS.append(f.replace('.txt', ''))
-    
-    # Available chat rooms - stored as constant for now, could be moved to database
-    # CHAT_ROOMS = [
-    #     'General',
-    #     'Zero to Knowing',
-    #     'Code with Josh',
-    #     'The Nerd Nook'
-    # ]
-
 # Initialize Flask app
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -98,9 +81,6 @@ def connect():
             'connected_at': datetime.now().isoformat()
         }
         
-        # emit('active_users', {
-        #     'users': [user['username'] for user in active_users.values()]
-        # }, broadcast=True)
         
         logger.info(f"User connected: {session['username']}")
     
@@ -131,7 +111,6 @@ def on_join(data: dict):
         room = data['room']
 
         if room not in get_rooms():
-        # if room not in app.config['CHAT_ROOMS']:
             logger.warning(f"Invalid room join attempt: {room}")
             return
         
@@ -157,12 +136,6 @@ def on_join(data: dict):
                     'room': room,
                     'timestamp': datetime.now().isoformat()
                 }, room=room)
-
-        # emit('status', {
-        #     'msg': f'{username} has joined the room.',
-        #     'type': 'join',
-        #     'timestamp': datetime.now().isoformat()
-        # }, room=room)
         
         logger.info(f"User {username} joined room: {room}")
     
