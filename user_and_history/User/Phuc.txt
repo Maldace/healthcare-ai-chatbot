@@ -6,3 +6,12 @@ User:bệnh đó nên uống thuốc gì
 Bot:Căn bệnh mà bạn đang muốn tìm hiểu là viêm tai giữa. Đối với điều trị, hệ thống gợi ý sử dụng Amoxicillin hoặc Cefdinir để kháng sinh, Acetaminophen để giảm đau, cùng với thuốc thông mũi và mở thông màng nhĩ nếu tái phát.
 
 Nếu bạn gặp phải các triệu chứng như đau đầu, sốt, khó chịu khi nghe âm thanh, hãy đến cơ sở y tế hoặc gặp bác sĩ để được thăm khám trực tiếp. Đây chỉ là thông tin tham khảo từ hệ thống.
+User:viên tai ngoài nên uống thuốc gì
+Bot:Căn bệnh mà bạn đang muốn tìm hiểu là Viêm tai ngoài. Đối với viêm tai ngoài, hệ thống đã gợi ý một số phương pháp điều trị như:
+
+- Thuốc nhỏ tai kháng sinh tại chỗ (ví dụ: Ciprofloxacin + Hydrocortisone)
+- Thuốc nhỏ tai có tính axit (ví dụ: Axit axetic)
+- Thuốc giảm đau
+- Bấc thấm tai cho các trường hợp nhiễm trùng sâu
+
+Tuy nhiên, đây chỉ là thông tin tham khảo từ hệ thống. Bạn nên đến các cơ sở y tế hoặc gặp bác sĩ để thăm khám trực tiếp, vì đây chỉ là thông tin tham khảo từ hệ thống.

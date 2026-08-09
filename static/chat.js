@@ -3,7 +3,6 @@ let currentRoom = 'General';
 let username = document.getElementById('username').textContent;
 let roomMessages = {};
 
-// Socket event listeners
 socket.on('connect', () => {
 	joinRoom('General');
 	highlightActiveRoom('General');
@@ -34,7 +33,6 @@ socket.on('status', (data) => {
 // 		.join('');
 // });
 
-// Message handling
 function addMessage(sender, message, type) {
 	if (!roomMessages[currentRoom]) {
 		roomMessages[currentRoom] = [];
@@ -72,7 +70,6 @@ function joinRoom(room) {
 
 	highlightActiveRoom(room);
 
-	// Show room history
 	const chat = document.getElementById('chat');
 	chat.innerHTML = '';
 
@@ -90,7 +87,6 @@ function handleKeyPress(event) {
 	}
 }
 
-// Initialize chat when page loads
 let chat;
 document.addEventListener('DOMContentLoaded', () => {
 	chat = new ChatApp();
@@ -99,7 +95,6 @@ document.addEventListener('DOMContentLoaded', () => {
 	}
 });
 
-// Add this new function to handle room highlighting
 function highlightActiveRoom(room) {
 	document.querySelectorAll('.room-item').forEach((item) => {
 		item.classList.remove('active-room');
@@ -175,3 +170,15 @@ socket.on("new_chat", function(data) {
 
 	console.log("Đã nhận chat mới");
 });
+// function login(){
+// 	let username = document.getElementById("username").value
+// 	let password = document.getElementById("password").value
+// 	socket.emit('login',{
+// 		username: username,
+// 		password: password
+// 	}, function(response) { // Gửi thông tin login lên Flask và nhận response
+//     if (response.success) { // Kiểm tra đăng nhập thành công
+//         window.location.href = "/home"; // Chuyển trình duyệt đến /home
+//     }
+// 	})
+// }

@@ -1031,7 +1031,7 @@ def ask_symptom(question, chat):
     answer=rag_chain.invoke({'context':tong_hop, 'question':question})
     return answer
 
-def chat_with_bot(question, chat):
+def chat_with_bot(question, chat, user):
     if 'bệnh đó' in question or 'nó' in question or 'bệnh này' in question:
         with open(f"user_and_history/User/{chat}.json", "r", encoding='utf-8') as f:
             json_data = json.load(f)
