@@ -11,7 +11,7 @@
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" 
           integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLMDJc5fN9z1b44k8yU6h5E9Jz5p+1W8c+1gV4aN6vB4h4k4wP4x8zY5t4i4z4wZg==" 
           crossorigin="anonymous" referrerpolicy="no-referrer" />
-  	
+  	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 
     <style>
         body {
@@ -37,7 +37,10 @@
 <body>
 <div class="login-container">
         <h2 class="text-center mb-4" style="color: #654d3c;">Đăng Nhập Tài Khoản</h2>
-        
+        {% for message in get_flashed_messages() %}
+        <div style="color: red;" id="errorMessage">{{ message }}</div>
+        {% endfor %}
+        <form method="post" action="/login">
         <div class="mb-3">
             <label for="username" class="form-label">Tài khoản</label>
             <div class="input-group">
@@ -53,16 +56,15 @@
                 <input type="password" class="form-control" id="password" placeholder="Nhập mật khẩu" name="password" required>
             </div>
         </div>
-        <button class="btn w-100 fw-bold py-2 mb-3 shadow-sm" 
-                onclick="login()"
-                style="background-color: #dcb06b; color: white; border-radius: 20px; border: none;">
-            ĐĂNG NHẬP
-        </button>
-        
+        <input type="submit" class="btn w-100 fw-bold py-2 mb-3 shadow-sm" 
+                style="background-color: #dcb06b; color: white; border-radius: 20px; border: none;" value="ĐĂNG NHẬP">
+            
+    </input>
+        </form>
         <p class="text-center small text-muted">
             <a href="forgot" class="text-decoration-none" style="color: #654d3c;">Quên mật khẩu?</a>
             <span class="mx-2">|</span>
-            <a href="registerRedirect" class="text-decoration-none" style="color: #654d3c;">Đăng ký tài khoản</a>
+            <a href="{{url_for('register_redirect')}}" class="text-decoration-none" style="color: #654d3c;">Đăng ký tài khoản</a>
         </p>
 </div>
 <script src="{{ url_for('static', filename='chat.js') }}"></script>

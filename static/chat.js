@@ -42,7 +42,8 @@ function addMessage(sender, message, type) {
 	const chat = document.getElementById('chat');
 	const messageDiv = document.createElement('div');
 	messageDiv.className = `message ${type}`;
-	messageDiv.textContent = `${sender}: ${message}`;
+	// messageDiv.textContent = `${sender}: ${message}`;
+	messageDiv.textContent = `${message}`;
 
 	chat.appendChild(messageDiv);
 	chat.scrollTop = chat.scrollHeight;
@@ -134,6 +135,7 @@ function deleteRoom(room){
 	location.reload()
 }
 
+
 socket.on("new_chat", function(data) {
 
     const roomList = document.getElementById("room-list");
@@ -170,15 +172,9 @@ socket.on("new_chat", function(data) {
 
 	console.log("Đã nhận chat mới");
 });
-// function login(){
-// 	let username = document.getElementById("username").value
-// 	let password = document.getElementById("password").value
-// 	socket.emit('login',{
-// 		username: username,
-// 		password: password
-// 	}, function(response) { // Gửi thông tin login lên Flask và nhận response
-//     if (response.success) { // Kiểm tra đăng nhập thành công
-//         window.location.href = "/home"; // Chuyển trình duyệt đến /home
-//     }
-// 	})
-// }
+
+// socket.on("login_error", function(data){
+// 	const errorMessage = document.getElementById("errorMessage")
+// 	const content = document.createTextNode(data.msg)
+// 	errorMessage.appendChild(content)
+// })

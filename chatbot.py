@@ -2,11 +2,9 @@ import pandas as pd
 from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores.utils import DistanceStrategy
 from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from langchain_openai import ChatOpenAI
 from langchain_community.retrievers import BM25Retriever
 from langchain_classic.retrievers import EnsembleRetriever
 from sklearn.metrics.pairwise import cosine_similarity
@@ -30,9 +28,16 @@ for benh in ten_benh:
     diseases_docs.append(doc)
 
  
-description_df = pd.read_csv('SympScan - Symptomps to Disease/description.csv', encoding='utf-8')
-description_docs = description_df.astype(str).apply(lambda x: ": ".join(x), axis=1)
-description_docs= [Document(page_content=text, metadata={"source":"description.csv"}) for text in description_docs]
+description_df = pd.read_csv('SympScan - Symptomps to Disease/description.csv')
+cols = ['Mô tả']
+df = description_df[cols].astype(str).agg(', '.join, axis=1)
+description_docs = []
+ten_benh = description_df['Bệnh'].unique()
+for i, benh in enumerate(ten_benh):
+    mo_ta = f'{benh} : {df[i]}'
+    mo_ta = mo_ta.replace('\u200b', '')
+    doc=Document(page_content=mo_ta,metadata={"source":"description.csv"})
+    description_docs.append(doc)
 
  
 diets_df = pd.read_csv('SympScan - Symptomps to Disease/diets.csv', encoding='utf-8')
@@ -99,32 +104,32 @@ embedding_model = HuggingFaceEmbeddings(
 
  
 diseases_vectorstore = FAISS.load_local(
-    'diseases_vectorstore',
+    'vectorstore/diseases_vectorstore',
     embeddings=embedding_model,
     allow_dangerous_deserialization=True
 )
 description_vectorstore = FAISS.load_local(
-    'description_vectorstore',
+    'vectorstore/description_vectorstore',
     embeddings=embedding_model,
     allow_dangerous_deserialization=True
 )
 diets_vectorstore = FAISS.load_local(
-    'diets_vectorstore',
+    'vectorstore/diets_vectorstore',
     embeddings=embedding_model,
     allow_dangerous_deserialization=True
 )
 medications_vectorstore = FAISS.load_local(
-    'medications_vectorstore',
+    'vectorstore/medications_vectorstore',
     embeddings=embedding_model,
     allow_dangerous_deserialization=True
 )
 precautions_vectorstore = FAISS.load_local(
-    'precautions_vectorstore',
+    'vectorstore/precautions_vectorstore',
     embeddings=embedding_model,
     allow_dangerous_deserialization=True
 )
 workout_vectorstore = FAISS.load_local(
-    'workout_vectorstore',
+    'vectorstore/workout_vectorstore',
     embeddings=embedding_model,
     allow_dangerous_deserialization=True
 )
@@ -163,7 +168,7 @@ llm = ChatOllama(
 )
 
  
-def diseases_predict(question, chat):
+def diseases_predict(question, chat, user):
     retriever = diseases_vectorstore.as_retriever(
     search_type='similarity',
     search_kwargs={'k':5}
@@ -241,8 +246,7 @@ def diseases_predict(question, chat):
 
     ask_symptoms =json.loads((llm.invoke(messages)).content)
     if ask_symptoms == 'Câu hỏi không liên quan đến y tế':
-        print(ask_symptoms)
-        return
+        return ask_symptoms
     ask_symptoms = [text.lower() for text in ask_symptoms]
     ask_sym_embed = embedding_model.embed_documents(ask_symptoms)
     docs=retrievers.invoke(question)
@@ -266,20 +270,20 @@ def diseases_predict(question, chat):
             tong_hop+=(f"{ten_benh}có {so_luong_khop} triệu chứng khớp với mô tả: {tck}.\n")
             found_diseases.append(ten_benh)
     if len(tong_hop)==0:
-        print('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với các triệu chứng của bạn')
+        return ('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với các triệu chứng của bạn')
     else:
-        with open(f"user_and_history/User/{chat}.json", "r", encoding='utf-8') as f:
+        with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "r", encoding='utf-8') as f:
             json_data = json.load(f)
         json_data['last_diseases'] = found_diseases
         json_str = json.dumps(json_data, ensure_ascii=False, indent=4)
-        with open(f"user_and_history/User/{chat}.json", "w", encoding='utf-8') as f:
+        with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "w", encoding='utf-8') as f:
             f.write(json_str)
         answer=rag_chain.invoke(tong_hop)
         # answer=rag_chain.invoke({'context':tong_hop, 'question':question})
         return answer
 
  
-def ask_description(question, chat):
+def ask_description(question, chat, user):
     retriever = description_vectorstore.as_retriever(
     search_type='similarity',
     search_kwargs={'k':5}
@@ -369,14 +373,13 @@ def ask_description(question, chat):
 
     ask_diseases =json.loads((llm.invoke(messages)).content)
     if ask_diseases == 'Câu hỏi không liên quan đến y tế':
-        print(ask_diseases)
-        return
+        return ask_diseases
     ask_diseases = [text.lower().strip() for text in ask_diseases]
-    with open(f"user_and_history/User/{chat}.json", "r", encoding='utf-8') as f:
+    with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "r", encoding='utf-8') as f:
         json_data = json.load(f)
     json_data['last_diseases'] = ask_diseases
     json_str = json.dumps(json_data, ensure_ascii=False, indent=4)
-    with open(f"user_and_history/User/{chat}.json", "w", encoding='utf-8') as f:
+    with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "w", encoding='utf-8') as f:
         f.write(json_str)
     # ask_dis_embed = embedding_model.embed_documents(ask_diseases)
     tong_hop=''
@@ -397,14 +400,12 @@ def ask_description(question, chat):
                     continue
                 tong_hop += f'{doc.page_content}\n'
     if len(tong_hop)==0:
-        print('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với bệnh của bạn')
-        return
-    # print(format_docs(retrievers.invoke(tong_hop)))
+        return ('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với bệnh của bạn')
     answer=rag_chain.invoke({'context':tong_hop, 'question':question})
     return answer
 
  
-def ask_diets(question, chat):
+def ask_diets(question, chat, user):
     retriever = diets_vectorstore.as_retriever(
     search_type='similarity',
     search_kwargs={'k':5}
@@ -494,14 +495,13 @@ def ask_diets(question, chat):
 
     ask_diseases =json.loads((llm.invoke(messages)).content)
     if ask_diseases == 'Câu hỏi không liên quan đến y tế':
-        print(ask_diseases)
-        return
+        return ask_diseases
     ask_diseases = [text.lower().strip() for text in ask_diseases]
-    with open(f"user_and_history/User/{chat}.json", "r", encoding='utf-8') as f:
+    with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "r", encoding='utf-8') as f:
         json_data = json.load(f)
     json_data['last_diseases'] = ask_diseases
     json_str = json.dumps(json_data, ensure_ascii=False, indent=4)
-    with open(f"user_and_history/User/{chat}.json", "w", encoding='utf-8') as f:
+    with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "w", encoding='utf-8') as f:
         f.write(json_str)
     # ask_dis_embed = embedding_model.embed_documents(ask_diseases)
     tong_hop=''
@@ -522,14 +522,12 @@ def ask_diets(question, chat):
                     continue
                 tong_hop += f'{doc.page_content}\n'
     if len(tong_hop)==0:
-        print('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với bệnh của bạn')
-        return
-    # print(format_docs(retrievers.invoke(tong_hop)))
+        return ('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với bệnh của bạn')
     answer=rag_chain.invoke({'context':tong_hop, 'question':question})
     return answer
 
  
-def ask_medications(question, chat):
+def ask_medications(question, chat, user):
     retriever = medications_vectorstore.as_retriever(
     search_type='similarity',
     search_kwargs={'k':5}
@@ -619,14 +617,13 @@ def ask_medications(question, chat):
 
     ask_diseases =json.loads((llm.invoke(messages)).content)
     if ask_diseases == 'Câu hỏi không liên quan đến y tế':
-        print(ask_diseases)
-        return
+        return ask_diseases
     ask_diseases = [text.lower().strip() for text in ask_diseases]
-    with open(f"user_and_history/User/{chat}.json", "r", encoding='utf-8') as f:
+    with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "r", encoding='utf-8') as f:
         json_data = json.load(f)
     json_data['last_diseases'] = ask_diseases
     json_str = json.dumps(json_data, ensure_ascii=False, indent=4)
-    with open(f"user_and_history/User/{chat}.json", "w", encoding='utf-8') as f:
+    with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "w", encoding='utf-8') as f:
         f.write(json_str)
     # ask_dis_embed = embedding_model.embed_documents(ask_diseases)
     tong_hop=''
@@ -647,14 +644,12 @@ def ask_medications(question, chat):
                     continue
                 tong_hop += f'{doc.page_content}\n'
     if len(tong_hop)==0:
-        print('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với bệnh của bạn')
-        return
-    # print(format_docs(retrievers.invoke(tong_hop)))
+        return ('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với bệnh của bạn')
     answer=rag_chain.invoke({'context':tong_hop, 'question':question})
     return answer
 
  
-def ask_precautions(question, chat):
+def ask_precautions(question, chat, user):
     retriever = precautions_vectorstore.as_retriever(
     search_type='similarity',
     search_kwargs={'k':5}
@@ -743,16 +738,14 @@ def ask_precautions(question, chat):
     )
 
     ask_diseases =json.loads((llm.invoke(messages)).content)
-    # print(ask_diseases)
     if ask_diseases == 'Câu hỏi không liên quan đến y tế':
-        print(ask_diseases)
-        return
+        return ask_diseases
     ask_diseases = [text.lower().strip() for text in ask_diseases]
-    with open(f"user_and_history/User/{chat}.json", "r", encoding='utf-8') as f:
+    with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "r", encoding='utf-8') as f:
         json_data = json.load(f)
     json_data['last_diseases'] = ask_diseases
     json_str = json.dumps(json_data, ensure_ascii=False, indent=4)
-    with open(f"user_and_history/User/{chat}.json", "w", encoding='utf-8') as f:
+    with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "w", encoding='utf-8') as f:
         f.write(json_str)
     # ask_dis_embed = embedding_model.embed_documents(ask_diseases)
     tong_hop=''
@@ -773,14 +766,12 @@ def ask_precautions(question, chat):
                     continue
                 tong_hop += f'{doc.page_content}\n'
     if len(tong_hop)==0:
-        print('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với bệnh của bạn')
-        return
-    # print(format_docs(retrievers.invoke(tong_hop)))
+        return ('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với bệnh của bạn')
     answer=rag_chain.invoke({'context':tong_hop, 'question':question})
     return answer
 
  
-def ask_workout(question, chat):
+def ask_workout(question, chat, user):
     retriever = workout_vectorstore.as_retriever(
     search_type='similarity',
     search_kwargs={'k':5}
@@ -869,16 +860,14 @@ def ask_workout(question, chat):
     )
 
     ask_diseases =json.loads((llm.invoke(messages)).content)
-    # print(ask_diseases)
     if ask_diseases == 'Câu hỏi không liên quan đến y tế':
-        print(ask_diseases)
-        return
+        return ask_diseases
     ask_diseases = [text.lower().strip() for text in ask_diseases]
-    with open(f"user_and_history/User/{chat}.json", "r", encoding='utf-8') as f:
+    with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "r", encoding='utf-8') as f:
         json_data = json.load(f)
     json_data['last_diseases'] = ask_diseases
     json_str = json.dumps(json_data, ensure_ascii=False, indent=4)
-    with open(f"user_and_history/User/{chat}.json", "w", encoding='utf-8') as f:
+    with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "w", encoding='utf-8') as f:
         f.write(json_str)
     # ask_dis_embed = embedding_model.embed_documents(ask_diseases)
     tong_hop=''
@@ -899,14 +888,12 @@ def ask_workout(question, chat):
                     continue
                 tong_hop += f'{doc.page_content}\n'
     if len(tong_hop)==0:
-        print('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với bệnh của bạn')
-        return
-    # print(format_docs(retrievers.invoke(tong_hop)))
+        return ('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với bệnh của bạn')
     answer=rag_chain.invoke({'context':tong_hop, 'question':question})
     return answer
 
  
-def ask_symptom(question, chat):
+def ask_symptom(question, chat, user):
     retriever = diseases_vectorstore.as_retriever(
     search_type='similarity',
     search_kwargs={'k':5}
@@ -995,16 +982,14 @@ def ask_symptom(question, chat):
     )
 
     ask_diseases =json.loads((llm.invoke(messages)).content)
-    # print(ask_diseases)
     if ask_diseases == 'Câu hỏi không liên quan đến y tế':
-        print(ask_diseases)
-        return
+        return ask_diseases
     ask_diseases = [text.lower().strip() for text in ask_diseases]
-    with open(f"user_and_history/User/{chat}.json", "r", encoding='utf-8') as f:
+    with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "r", encoding='utf-8') as f:
         json_data = json.load(f)
     json_data['last_diseases'] = ask_diseases
     json_str = json.dumps(json_data, ensure_ascii=False, indent=4)
-    with open(f"user_and_history/User/{chat}.json", "w", encoding='utf-8') as f:
+    with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "w", encoding='utf-8') as f:
         f.write(json_str)
     # ask_dis_embed = embedding_model.embed_documents(ask_diseases)
     tong_hop=''
@@ -1025,167 +1010,46 @@ def ask_symptom(question, chat):
                     continue
                 tong_hop += f'{doc.page_content}\n'
     if len(tong_hop)==0:
-        print('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với bệnh của bạn')
-        return
-    # print(format_docs(retrievers.invoke(tong_hop)))
+        return ('Hệ thống không tìm thấy căn bệnh nào trong cơ sở dữ liệu khớp với bệnh của bạn')
     answer=rag_chain.invoke({'context':tong_hop, 'question':question})
     return answer
 
+
 def chat_with_bot(question, chat, user):
-    if 'bệnh đó' in question or 'nó' in question or 'bệnh này' in question:
-        with open(f"user_and_history/User/{chat}.json", "r", encoding='utf-8') as f:
+    if (re.search(r"\bbệnh đó\b", question) or re.search(r"\bnó\b", question) or re.search(r"\bbệnh này\b", question)):
+        with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "r", encoding="utf-8") as f:
             json_data = json.load(f)
-        diseases = json_data['last_diseases']
-        if 'triệu chứng' in question:
-            return ask_symptom(diseases, chat)
-        elif ('là' in question and 'bệnh' in question) or 'là' in question:
-            return ask_description(diseases, chat)
-        elif 'ăn' in question or 'bổ sung' in question or 'dùng' in question:
-            return ask_diets(diseases, chat)
-        elif 'thuốc' in question or 'uống' in question:
-            return ask_medications(diseases, chat)
-        elif 'làm' in question or 'phòng' in question or 'ngừa' in question:
-            return ask_precautions(diseases, chat)
-        elif 'tập' in question or 'luyện' in question or 'vận động' in question:
-            return ask_workout(diseases, chat)
-    
-    if ('bị bệnh' in question) or ('bị' in question and 'bệnh gì' in question) or ('bị gì' in question):
-        return diseases_predict(question, chat)
-    elif 'triệu chứng' in question:
-        return ask_symptom(question, chat)
-    elif ('là' in question and 'bệnh' in question) or 'là' in question:
-        return ask_description(question, chat)
-    elif 'ăn' in question or 'bổ sung' in question or 'dùng' in question:
-        return ask_diets(question, chat)
-    elif 'thuốc' in question or 'uống' in question:
-        return ask_medications(question, chat)
-    elif 'làm' in question or 'phòng' in question or 'ngừa' in question:
-        return ask_precautions(question, chat)
-    elif 'tập' in question or 'luyện' in question or 'vận động' in question:
-        return ask_workout(question, chat)
+        diseases = json_data["last_diseases"]
+        if len(diseases)==0:
+            return('Chưa có bệnh được ghi nhận, vui lòng đưa ra thông tin cụ thể về bệnh')
+        if re.search(r"\btriệu chứng\b", question):
+            return ask_symptom(diseases, chat, user)
+        elif (re.search(r"\blà\b", question) and re.search(r"\bbệnh\b", question)) or re.search(r"\blà\b", question):
+            return ask_description(diseases, chat, user)
+        elif (re.search(r"\băn\b", question) or re.search(r"\bbổ sung\b", question) or re.search(r"\bdùng\b", question)):
+            return ask_diets(diseases, chat, user)
+        elif re.search(r"\bthuốc\b", question) or re.search(r"\buống\b", question):
+            return ask_medications(diseases, chat, user)
+        elif (re.search(r"\blàm\b", question) or re.search(r"\bphòng\b", question) or re.search(r"\bngừa\b", question)):
+            return ask_precautions(diseases, chat, user)
+        elif (re.search(r"\btập\b", question) or re.search(r"\bluyện\b", question) or re.search(r"\bvận động\b", question)):
+            return ask_workout(diseases, chat, user)
+        else:
+            return "Câu hỏi không liên quan đến y tế hoặc hệ thống chưa cập nhật chức năng này"
+
+    if (re.search(r"\bbị bệnh\b", question) or (re.search(r"\bbị\b", question) and re.search(r"\bbệnh gì\b", question)) or re.search(r"\bbị gì\b", question)):
+        return diseases_predict(question, chat, user)
+    elif re.search(r"\btriệu chứng\b", question):
+        return ask_symptom(question, chat, user)
+    elif (re.search(r"\blà\b", question) and re.search(r"\bbệnh\b", question)) or re.search(r"\blà\b", question):
+        return ask_description(question, chat, user)
+    elif (re.search(r"\băn\b", question) or re.search(r"\bbổ sung\b", question) or re.search(r"\bdùng\b", question)):
+        return ask_diets(question, chat, user)
+    elif re.search(r"\bthuốc\b", question) or re.search(r"\buống\b", question):
+        return ask_medications(question, chat, user)
+    elif (re.search(r"\blàm\b", question) or re.search(r"\bphòng\b", question) or re.search(r"\bngừa\b", question)):
+        return ask_precautions(question, chat, user)
+    elif (re.search(r"\btập\b", question) or re.search(r"\bluyện\b", question) or re.search(r"\bvận động\b", question)):
+        return ask_workout(question, chat, user)
     else:
-        return ('Câu hỏi không liên quan đến y tế')
-    
-
-
-# def guess_diseases(question):
-#     messages = [
-#         (
-#             "system",
-#     #         """
-#     # Bạn là bộ trích xuất tên bệnh.
-#     # Nhiệm vụ của bạn là đọc toàn bộ lịch sử hội thoại được cung cấp
-#     # để dự đoán tên bệnh mà người dùng đang nhắc đến.
-
-#     # Nếu câu hỏi hiện tại không nhắc đến tên bệnh
-#     # nhưng trong câu hỏi có hàm ý nhắc về căn bệnh được nói 
-#     # trong cuộc hội thoại trước đó
-#     # hãy sử dụng tên bệnh gần nhất trong lịch sử để trả lời.
-
-#     # Ví dụ:
-
-#     # User: Đau tim là bệnh gì?
-#     # Assistant: ...
-
-#     # User: Triệu chứng là gì?
-
-#     # Kết quả:
-#     # ["đau tim"]
-
-#     # Định dạng đầu ra PHẢI LÀ một JSON array. Chỉ được trả về đúng một JSON hợp lệ. 
-#     # Không được thêm bất kỳ ký tự, lời giải thích hay markdown nào trước hoặc sau JSON:
-#     # -Nếu câu hỏi hoặc lịch sử có tên bệnh thì trả về:
-
-#     # ["tên bệnh 1", "tên bệnh 2", ...]
-
-#     # -Nếu cả câu hỏi và lịch sử đều không có tên bệnh thì trả về:
-
-#     # "Câu hỏi không liên quan đến y tế"
-#     # """
-#     # """
-#     # Bạn là bộ trích xuất tên bệnh.
-#     # Nhiệm vụ của bạn là đọc toàn bộ lịch sử hội thoại được cung cấp
-#     # để dự đoán tên bệnh mà người dùng đang nhắc đến.
-
-#     # Nếu trong câu hỏi xuất hiện các đại từ:
-
-#     # - bệnh đó
-#     # - bệnh này
-#     # - căn bệnh đó
-#     # - căn bệnh này
-#     # - nó
-
-#     # thì TUYỆT ĐỐI KHÔNG được trả về các đại từ này.
-
-#     # Phải thay thế chúng bằng tên bệnh gần nhất xuất hiện trong lịch sử hội thoại,
-#     # trả về đầu ra một JSON array. Chỉ được trả về đúng một JSON hợp lệ. 
-#     # Không được thêm bất kỳ ký tự, lời giải thích hay markdown nào trước hoặc sau JSON.
-
-#     # Ví dụ:
-
-#     # User:
-#     # Viêm tai giữa nên uống thuốc gì?
-
-#     # Assistant:
-#     # ...
-
-#     # User:
-#     # Bệnh đó nên ăn gì?
-
-#     # Đúng:
-#     # ["viêm tai giữa"]
-
-#     # Sai:
-#     # ["bệnh đó"]
-
-#     # Nếu cả câu hỏi và lịch sử đều không có tên bệnh thì trả về:
-#     # "Câu hỏi không liên quan đến y tế"
-#     # """
-#     """
-#     Bạn là bộ xác định tên bệnh.
-
-#     Bạn sẽ nhận được toàn bộ lịch sử hội thoại theo đúng thứ tự thời gian.
-
-#     - Tin nhắn human cuối cùng chính là câu hỏi hiện tại.
-#     - Các tin nhắn trước đó là lịch sử hội thoại.
-
-#     Nếu câu hỏi hiện tại sử dụng các đại từ như:
-#     - bệnh đó
-#     - bệnh này
-#     - căn bệnh đó
-#     - căn bệnh này
-#     - nó
-
-#     thì hãy xác định xem đại từ đó đang chỉ bệnh nào trong lịch sử hội thoại.
-
-#     Chỉ trả về đúng một JSON hợp lệ.
-
-#     Nếu tìm thấy:
-#     ["tên bệnh"]
-
-#     Nếu không tìm thấy:
-#     "Câu hỏi không liên quan đến y tế"
-#     """
-#         )
-#     ]
-
-#     with open("user_and_history/User/aa.txt", "r", encoding="utf-8") as f:
-#         content = f.read()
-#     chat = re.split(r'(?i)(?=\b(?:user|bot):)', content, flags=re.MULTILINE)
-#     chat = [item.strip() for item in chat if item.strip()]
-#     newest_chat = chat[-10:]
-#     lst = []
-#     for txt in newest_chat:
-#         lst.append(txt.split(':',1))
-#     messages.append('LỊCH SỬ HỘI THOẠI')
-#     for element in lst:
-#         messages.append((('human' if element[0] == 'User' else 'assistant'),element[1]))
-#     messages.append('CÂU HỎI HIỆN TẠI')
-#     messages.append(("human", question))
-#     ask_diseases =json.loads((llm.invoke(messages)).content)
-#     print(ask_diseases)
-#     print(content) 
-#     from pprint import pprint 
-#     pprint(messages)
-    
-# guess_diseases('bệnh đó nên ăn gì?')
+        return "Câu hỏi không liên quan đến y tế hoặc hệ thống chưa cập nhật chức năng này"

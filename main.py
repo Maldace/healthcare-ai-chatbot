@@ -1,15 +1,16 @@
 # Imports here
 import os
 import re 
-import random
 import logging
 import json
-from datetime import datetime
-from typing import Dict, List, Optional
+from datetime import datetime, timedelta
+from typing import Dict
 
-from flask import Flask, render_template, request, session, redirect, url_for
+from flask import Flask, render_template, request, session, redirect, flash
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from werkzeug.middleware.proxy_fix import ProxyFix
+
+import pyodbc
 
 import chatbot
 
@@ -25,8 +26,17 @@ class Config:
     DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1', 't')
     CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '*')
 
+DRIVER_NAME = 'ODBC Driver 17 for SQL Server'
+SERVER_NAME = r'LAPTOP-AEBT61JV\SQLEXPRESS'
+DATABASE_NAME = 'chatbot_db'
+connection_string = f'DRIVER={DRIVER_NAME};SERVER={SERVER_NAME};DATABASE={DATABASE_NAME};Trusted_Connection=yes;'
+conn = pyodbc.connect(connection_string)
+
+
 app = Flask(__name__)
 app.config.from_object(Config)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.secret_key='mysecretkey'
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
@@ -43,40 +53,114 @@ def get_rooms(user):
 
     rooms = []
 
-    for (root, dirs, file) in os.walk(f'user_and_history/{user}'):
-            for f in file:
-                if '.txt' in f:
-                    rooms.append(f.replace('.txt', ''))
+    # for (root, dirs, file) in os.walk(f'../chatbot_ai_user_and_history/user_and_history/{user}'):
+    #         for f in file:
+    for path, subdirs, files in os.walk(f'../chatbot_ai_user_and_history/user_and_history/{user}'):
+        for name in sorted(files, key=lambda name: os.path.getmtime(os.path.join(path, name)), reverse=True):
+            if '.txt' in name:
+                rooms.append(name.replace('.txt', ''))
 
     return rooms
-
-# @app.route('/')
-# def loginRedirect():
     
+
+@app.route('/')
+def index():
+    try:
+        if 'username' not in session:
+            return render_template('login.html')
+        
+        return render_template(
+            'index.html',
+            username = session['username'],
+            rooms = get_rooms(session['username'])
+        )
+    except Exception as e:
+        logger.error(f"Redirect index error: {str(e)}")
+        return render_template('login.html', error='Có lỗi, vui lòng đăng nhập lại!')
+
+# @app.route('/login')
+# def loginRedirect():
 #     return render_template(
 #         'login.html'
 #     )
     
-# @socketio.on('login')
-# def login(data):
-#     username = data['username']
-#     password = data['password']
-#     session['username'] = username
-#     return {'success': True}
+@app.route('/login', methods = ['GET', 'POST'])
+def login():
+    try:
+        if request.method == 'POST':
+            typedUsername = request.form['username']
+            cursor = conn.cursor()
+            sql = "select password from tblUser where username like ?"
+            cursor.execute(sql, (typedUsername))
+            realPassword = cursor.fetchone()
+            if realPassword==None:
+                flash('Tài khoản hoặc mật khẩu không đúng. Vui lòng thử lại!')
+            else:
+                typedPassword = request.form['password']
+                if typedPassword==realPassword[0]:
+                    session['username'] = request.form['username']
+                    session.permanent = True
+                    return redirect('/')
+                else:
+                    flash('Tài khoản hoặc mật khẩu không đúng. Vui lòng thử lại!')
+            return render_template('login.html')
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}")
+        return render_template('login.html', error='Có lỗi, vui lòng đăng nhập lại!')
 
-@app.route('/')
-def index():
-    if 'username' not in session:
-        # return redirect('/login')
-        session['username'] = 'User'
-        logger.info(f"New user session created: {session['username']}")
-    
-    return render_template(
-        'index.html',
-        username=session['username'],
-        # rooms=app.config['CHAT_ROOMS']
-        rooms = get_rooms(session['username'])
-    )
+@app.route('/logout')
+def logout():
+    try:
+        session.pop('username', None)
+        return redirect('/')
+    except Exception as e:
+        logger.error(f"Logout error: {str(e)}")
+        return render_template('login.html', error='Có lỗi, vui lòng đăng nhập lại!')
+
+@app.route('/register_redirect')
+def register_redirect():
+    try:
+        return render_template('register.html')
+    except Exception as e:
+        logger.error(f"Redirect register error: {str(e)}")
+        return render_template('login.html', error='Có lỗi, vui lòng đăng nhập lại!')
+
+@app.route('/register', methods = ['GET', 'POST'])
+def register():
+    try:
+        if request.method == 'POST':
+            if request.form['password'] == request.form['confirmPassword']:
+                username = request.form['username']
+                password = request.form['password']
+                email = request.form['email']
+                phone = request.form['phone']
+                sql = "select username from tblUser where username like ?"
+                cursor = conn.cursor()
+                cursor.execute(sql, (username))
+                existingUser = cursor.fetchone()
+                if existingUser == None:
+                    sql = 'insert into tblUser (username, password, email, phone) values (?, ?, ?, ?)'
+                    cursor.execute(sql, (username, password, email, phone))
+                    os.mkdir(f'../chatbot_ai_user_and_history/user_and_history/{username}')
+                    with open(f"../chatbot_ai_user_and_history/user_and_history/{username}/General.txt", "x", encoding="utf-8"):
+                        pass
+                    general="""User:Welcome to the Healthcare Chatbot AI!
+Bot:Here you can ask the chatbot about symptoms, medicine, diet,... of some diseases.
+User:Be careful, as the information given by chatbot can be miscorrect and is just for reference only, cannot replace doctor's instruction.
+Bot:So, enjoy!!
+                    """
+                    with open(f"../chatbot_ai_user_and_history/user_and_history/{username}/General.txt", "a", encoding="utf-8") as f:
+                        f.write(general)
+                    flash('Đăng ký tài khoản thành công. Vui lòng đăng nhập để sử dụng dịch vụ')
+                    return redirect('/')
+                else:
+                    flash('Tên tài khoản đã được sử dụng. Vui lòng chọn tên khác')
+            else:
+                flash('Mật khẩu nhập lại không đúng. Vui lòng thử lại!')
+            return render_template('register.html')
+    except Exception as e:
+        logger.error(f"Register error: {str(e)}")
+        return render_template('login.html', error='Có lỗi, vui lòng đăng nhập lại!')
 
 @socketio.event
 def connect():
@@ -125,22 +209,44 @@ def on_join(data: dict):
         join_room(room)
         active_users[request.sid]['room'] = room
         
-        with open(f"user_and_history/{username}/{room}.txt", "r", encoding="utf-8") as f:
+        with open(f"../chatbot_ai_user_and_history/user_and_history/{username}/{room}.txt", "r", encoding="utf-8") as f:
             content = f.read()
         chat = re.split(r'(?i)(?=\b(?:user|bot):)', content, flags=re.MULTILINE)
         chat = [item.strip() for item in chat if item.strip()]
         for text in chat:
-            if text.startswith(f'{username}:'):
+            # if text.startswith(f'{username}:'):
+            #     emit('message', {
+            #         'msg': text.replace(f'{username}:', ''),
+            #         'username': username,
+            #         'room': room,
+            #         'timestamp': datetime.now().isoformat()
+            #     }, room=room)
+            # elif text.startswith('Bot:'):
+            #     emit('message', {
+            #         'msg': text.replace('Bot:', ''),
+            #         'username': 'Bot',
+            #         'room': room,
+            #         'timestamp': datetime.now().isoformat()
+            #     }, room=room)
+            sender, msg = text.split(':', 1)
+            # print(sender)
+            # emit('message', {
+            #     'msg': msg,
+            #     'username': sender,
+            #     'room': room,
+            #     'timestamp': datetime.now().isoformat()
+            #     }, room=room)
+            if sender==('Bot'):
                 emit('message', {
-                    'msg': text.replace(f'{username}:', ''),
-                    'username': username,
+                    'msg': msg,
+                    'username': 'Bot',
                     'room': room,
                     'timestamp': datetime.now().isoformat()
                 }, room=room)
-            elif text.startswith('Bot:'):
+            else:
                 emit('message', {
-                    'msg': text.replace('Bot:', ''),
-                    'username': 'Bot',
+                    'msg': msg,
+                    'username': username,
                     'room': room,
                     'timestamp': datetime.now().isoformat()
                 }, room=room)
@@ -200,10 +306,10 @@ def handle_message(data: dict):
                     'timestamp': timestamp
                 }, room=room)
             
-            with open(f"user_and_history/{username}/{room}.txt", "a", encoding="utf-8") as f:
+            with open(f"../chatbot_ai_user_and_history/user_and_history/{username}/{room}.txt", "a", encoding="utf-8") as f:
                 f.write(f'User:{message}\n')
 
-            with open(f"user_and_history/{username}/{room}.txt", "a", encoding="utf-8") as f:
+            with open(f"../chatbot_ai_user_and_history/user_and_history/{username}/{room}.txt", "a", encoding="utf-8") as f:
                 f.write(f'Bot:{bot_answer}\n')    
             
             logger.info(f"Message sent in {room} by {username}")
@@ -212,41 +318,47 @@ def handle_message(data: dict):
         logger.error(f"Message handling error: {str(e)}")
 
 @socketio.on('create_new_chat')
-def crete_chat(data):
-    room = data['roomName']
-    username = session['username']
-    json_data = {"last_diseases" : ""}
-    json_str = json.dumps(json_data, indent=4)
-    with open(f"user_and_history/{username}/{room}.json", "w", encoding="utf-8") as f:
-        f.write(json_str)
-    with open(f"user_and_history/{username}/{room}.txt", "x", encoding="utf-8"):
-        pass
-    # get_rooms()
-    # return redirect(url_for("index"))
-    # app.config["CHAT_ROOMS"].append(room)
+def create_chat(data):
+    try:
+        room = data['roomName']
+        username = session['username']
+        json_data = {"last_diseases" : ""}
+        json_str = json.dumps(json_data, indent=4)
+        with open(f"../chatbot_ai_user_and_history/user_and_history/{username}/{room}.json", "w", encoding="utf-8") as f:
+            f.write(json_str)
+        with open(f"../chatbot_ai_user_and_history/user_and_history/{username}/{room}.txt", "x", encoding="utf-8"):
+            pass
 
-    emit(
-        "new_chat",
-        {
-            "room": room
-        },
-        broadcast=True
-    )
+        emit(
+            "new_chat",
+            {
+                "room": room
+            },
+            broadcast=True
+        )
+    except Exception as e:
+        logger.error(f"Create chat error: {str(e)}")
 
 @socketio.on('edit-name')
-def editRoomName(data):
-    room = data['room']
-    newName = data['newName']
-    username = session['username']
-    os.rename(f"user_and_history/{username}/{room}.txt",f"user_and_history/{username}/{newName}.txt")
-    os.rename(f"user_and_history/{username}/{room}.json",f"user_and_history/{username}/{newName}.json")
+def edit_room_name(data):
+    try:
+        room = data['room']
+        newName = data['newName']
+        username = session['username']
+        os.rename(f"../chatbot_ai_user_and_history/user_and_history/{username}/{room}.txt",f"../chatbot_ai_user_and_history/user_and_history/{username}/{newName}.txt")
+        os.rename(f"../chatbot_ai_user_and_history/user_and_history/{username}/{room}.json",f"../chatbot_ai_user_and_history/user_and_history/{username}/{newName}.json")
+    except Exception as e:
+        logger.error(f"Edit room name error: {str(e)}")
 
 @socketio.on('delete')
-def deleteRoom(data):
-    room = data['room']
-    username = session['username']
-    os.remove(f"user_and_history/{username}/{room}.txt")
-    os.remove(f"user_and_history/{username}/{room}.json")
+def delete_room(data):
+    try:
+        room = data['room']
+        username = session['username']
+        os.remove(f"../chatbot_ai_user_and_history/user_and_history/{username}/{room}.txt")
+        os.remove(f"../chatbot_ai_user_and_history/user_and_history/{username}/{room}.json")
+    except Exception as e:
+        logger.error(f"Delete room error: {str(e)}")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

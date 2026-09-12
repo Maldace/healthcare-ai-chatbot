@@ -1,0 +1,130 @@
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Đăng ký tài khoản</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+    <style>
+        .register-wrapper {
+            display: flex;
+            justify-content: center;
+            padding: 50px 0;
+        }
+
+        .register-form-box {
+            max-width: 450px;
+            width: 100%;
+            margin: auto;
+            padding: 30px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            background-color: #fff;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        .register-form-box h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #654d3c;
+            font-weight: 700;
+        }
+
+        .register-form-box .input-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .register-form-box .input-group-addon {
+            padding: 10px 15px;
+            background: #f1f1f1;
+            border: 1px solid #ccc;
+            border-right: 0;
+            color: #555;
+            min-width: 45px;
+            text-align: center;
+        }
+
+        .register-form-box .form-control {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            outline: none;
+            font-size: 14px;
+        }
+
+        .register-form-box .form-control:focus {
+            border-color: #dcb06c;
+        }
+
+        .register-form-box .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background: #dcb06c;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+
+        .register-form-box .btn-submit:hover {
+            background: #c59a5b;
+        }
+
+        .register-form-box .alert {
+            color: #d9534f;
+            text-align: center;
+            background-color: #fceceb;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 15px;
+        }
+    </style>
+
+</head>
+<body>
+    <div class="register-wrapper">
+    <div class="register-form-box">
+        <form action="/register" method="post">
+            <h2>Tạo tài khoản mới</h2>
+            {% for message in get_flashed_messages() %}
+            <div style="color: red;" id="errorMessage">{{ message }}</div>
+            {% endfor %}
+            <div class="input-group">
+                <span class="input-group-addon"><i class="fa fa-user"></i></span>
+                <input type="text" placeholder="Username" name="username" class="form-control" required>
+            </div>
+
+            <div class="input-group">
+                <span class="input-group-addon"><i class="fa fa-lock"></i></span>
+                <input type="password" placeholder="Password" name="password" class="form-control" required>
+            </div>
+
+            <div class="input-group">
+                <span class="input-group-addon"><i class="fa fa-lock"></i></span>
+                <input type="password" placeholder="Confirm Password" name="confirmPassword" class="form-control" required>
+            </div>
+
+            <div class="input-group">
+                <span class="input-group-addon"><i class="fa fa-envelope"></i></span>
+                <input type="email" placeholder="Email" name="email" class="form-control">
+            </div>
+
+            <div class="input-group">
+                <span class="input-group-addon"><i class="fa fa-phone"></i></span>
+                <input type="text" placeholder="Phone" name="phone" class="form-control">
+            </div>
+
+            <button type="submit" class="btn-submit">Đăng ký</button>
+        </form>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+</body>
+</html>

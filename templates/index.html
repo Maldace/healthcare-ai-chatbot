@@ -5,18 +5,38 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>Advanced Real-Time Chat</title>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-		<link
-			rel="stylesheet"
-			href="{{ url_for('static', filename='styles.css') }}">
+		<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+		<!-- <link rel="stylesheet" href="../static/styles.css"> -->
 
 		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 	</head>
 	<body>
+		<div class="header">
 		<h2>Welcome, <span id="username">{{ username }}</span>!</h2>
+		<a class="logout" href="{{url_for('logout')}}">Logout</a>
+		</div>
 		<div class="container">
 			<div class="sidebar">
 				<div class="room-list" id="room-list">
+					<div class="left-header">
 					<h3>Chat</h3>
+					<div class="outer">
+					<button id="showbtn" onclick="document.getElementById('dialog').showModal()">
+						Add a chat
+					</button>
+
+					<dialog id="dialog">
+						<h3>Name of the chat:</h3>
+
+						<input type="text" id="name">
+
+						<br><br>
+
+						<button onclick="createNewChat()">Create</button>
+						<button onclick="document.getElementById('dialog').close()">Cancel</button>
+					</dialog>
+					</div>
+				</div>
 					{% for room in rooms %}
 						{% if room != 'General' %}
 					<div class="chat-contain">
@@ -41,7 +61,7 @@
 						<button onclick="document.getElementById('edit-dialog').close()">Cancel</button>
 					</dialog>
 				</div>
-				<div class="outer">
+				<!-- <div class="outer">
 					<button id="showbtn" onclick="document.getElementById('dialog').showModal()">
 						Add a chat
 					</button>
@@ -56,7 +76,7 @@
 						<button onclick="createNewChat()">Create</button>
 						<button onclick="document.getElementById('dialog').close()">Cancel</button>
 					</dialog>
-				</div>
+				</div> -->
 			</div>
 			<div class="main-chat">
 				<div id="chat"></div>
