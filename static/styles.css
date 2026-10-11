@@ -27,6 +27,7 @@ body {
     box-shadow: var(--shadow);
     display: flex;
     align-items: center;
+    height: 15px;
 }
 
 h2 {
@@ -199,6 +200,7 @@ h2 {
     padding: 20px;
     background: var(--light);
     border-top: 1px solid rgba(0,0,0,0.1);
+    /* height: 200px; */
 }
 
 #message { 

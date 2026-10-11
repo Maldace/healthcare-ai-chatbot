@@ -5,8 +5,8 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>Advanced Real-Time Chat</title>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-		<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-		<!-- <link rel="stylesheet" href="../static/styles.css"> -->
+		<!-- <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}"> -->
+		<link rel="stylesheet" href="../static/styles.css">
 
 		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 	</head>
@@ -61,22 +61,6 @@
 						<button onclick="document.getElementById('edit-dialog').close()">Cancel</button>
 					</dialog>
 				</div>
-				<!-- <div class="outer">
-					<button id="showbtn" onclick="document.getElementById('dialog').showModal()">
-						Add a chat
-					</button>
-
-					<dialog id="dialog">
-						<h3>Name of the chat:</h3>
-
-						<input type="text" id="name">
-
-						<br><br>
-
-						<button onclick="createNewChat()">Create</button>
-						<button onclick="document.getElementById('dialog').close()">Cancel</button>
-					</dialog>
-				</div> -->
 			</div>
 			<div class="main-chat">
 				<div id="chat"></div>

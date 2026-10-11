@@ -91,8 +91,9 @@ def login():
             typedUsername = request.form['username']
             cursor = conn.cursor()
             sql = "select password from tblUser where username like ?"
-            cursor.execute(sql, (typedUsername))
+            cursor.execute(sql, (typedUsername,))
             realPassword = cursor.fetchone()
+            cursor.close()
             if realPassword==None:
                 flash('Tài khoản hoặc mật khẩu không đúng. Vui lòng thử lại!')
             else:
@@ -136,11 +137,12 @@ def register():
                 phone = request.form['phone']
                 sql = "select username from tblUser where username like ?"
                 cursor = conn.cursor()
-                cursor.execute(sql, (username))
+                cursor.execute(sql, (username,))
                 existingUser = cursor.fetchone()
                 if existingUser == None:
                     sql = 'insert into tblUser (username, password, email, phone) values (?, ?, ?, ?)'
                     cursor.execute(sql, (username, password, email, phone))
+                    conn.commit()
                     os.mkdir(f'../chatbot_ai_user_and_history/user_and_history/{username}')
                     with open(f"../chatbot_ai_user_and_history/user_and_history/{username}/General.txt", "x", encoding="utf-8"):
                         pass
@@ -161,6 +163,8 @@ Bot:So, enjoy!!
     except Exception as e:
         logger.error(f"Register error: {str(e)}")
         return render_template('login.html', error='Có lỗi, vui lòng đăng nhập lại!')
+    finally:
+        cursor.close()
 
 @socketio.event
 def connect():

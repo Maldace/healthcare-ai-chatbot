@@ -152,13 +152,6 @@ def prompt_chat(x, y):
     ])
     return prompt
 
- 
-# llm = ChatOpenAI(
-#     base_url='http://localhost:11434/v1/',
-#     api_key='ollama',
-#     model='qwen2.5:3b',
-#     temperature=0,
-# )
 llm = ChatOllama(
     model="qwen2.5:3b",
     num_ctx=1024,
