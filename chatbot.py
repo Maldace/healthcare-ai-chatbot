@@ -1,13 +1,14 @@
 from langchain_text_splitters import MarkdownHeaderTextSplitter
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_classic.vectorstores import FAISS
-from langchain_community.vectorstores.utils import DistanceStrategy
+# from langchain_community.vectorstores.utils import DistanceStrategy
 from langchain_ollama import ChatOllama
 from langchain_community.retrievers import BM25Retriever
 from langchain_classic.retrievers import EnsembleRetriever
 from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables.passthrough import RunnablePassthrough
+# from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 from sentence_transformers import CrossEncoder
 import numpy as np
 import json
@@ -42,7 +43,22 @@ llm = ChatOllama(
     temperature=0
 )
 
-reranking_model = CrossEncoder("Qwen/Qwen3-Reranker-0.6B")
+# chat = HuggingFaceEndpoint(
+#     repo_id='Qwen/Qwen2.5-3B',
+#     task="text-generation",
+#     max_new_tokens=2048,
+# )
+# llm = ChatHuggingFace(llm=chat)
+
+reranking_model = CrossEncoder(
+    "Qwen/Qwen3-Reranker-0.6B",
+    prompts={'instruction':
+    """
+    Bạn là công cụ sắp xếp câu hỏi và tài liệu về y tế.
+    Hãy sắp xếp các cặp câu hỏi và tài liệu được đưa theo thứ tự giảm dần, ưu tiên tài liệu liên quan nhất đến câu hỏi.
+    """},
+    default_prompt_name='instruction'            
+    )
 
 def prompt_chat(x, y):
     prompt = ChatPromptTemplate.from_messages([
@@ -53,15 +69,34 @@ def prompt_chat(x, y):
 
 def retriever():
     bm25_retriever = BM25Retriever.from_documents(chunks)
-    bm25_retriever.k = 5
+    bm25_retriever.k = 20
     vectorstore_retriever = vectorstore.as_retriever(
         search_type = 'similarity',
-        search_kwargs = {'k':10}
+        search_kwargs = {'k':20}
     )
     retrievers = EnsembleRetriever(
         retrievers = [bm25_retriever, vectorstore_retriever],
         weights = [0.3, 0.7]
     )
+    # chat = 'cách phòng ngừa bệnh addison'
+    # print('bm25')
+    # bm25 = bm25_retriever.invoke(chat)
+    # for num, i in enumerate(bm25):
+    #    print(num)
+    #    print(i.page_content)
+    #    print('===========')
+    
+    # print('vec')
+    # vec = vectorstore_retriever.invoke(chat)
+    # for num,  i in enumerate(vec):
+    #     print(num)
+    #     print(i.page_content)
+    #     print('===========')
+    # bm25 = retrievers.invoke(chat)
+    # for num, i in enumerate(bm25):
+    #     print(num)
+    #     print(i.page_content)
+    #     print('===========')
     return retrievers
 
 def chat_with_bot(question, chat, user):
@@ -70,8 +105,8 @@ def chat_with_bot(question, chat, user):
         "Nhiệm vụ của bạn là đọc thông tin được cung cấp để diễn đạt lại thành câu trả lời tự nhiên cho người dùng về vấn đề họ gặp phải.\n\n"
         
         "QUY TẮC PHẢN HỒI:\n"
-        "- Sử dụng ngôn ngữ ân cần, mạch lạc giống một chuyên viên y tế (ví dụ: 'Qua các triệu chứng bạn chia sẻ, hệ thống nhận thấy...').\n"
-        "- Không thêm, không bớt, không suy luận, không nói rằng không tìm thấy dữ liệu.\n"
+        "- Sử dụng ngôn ngữ ân cần, mạch lạc giống một chuyên viên y tế (ví dụ: 'Qua các thông tin bạn chia sẻ, hệ thống nhận thấy...').\n"
+        "- Chỉ đưa ra câu trả lời dựa trên tài liệu được cung cấp, không bớt, không suy luận thêm, không dùng kiến thức đã được huấn luyện sẵn từ trước để trả lời.\n"
         "- Triển khai mỗi ý nằm ổ một dòng, không đưa câu trả lời lên một dòng duy nhất.\n"
         "- Luôn kết thúc bằng một lời khuyên người dùng nên đến các cơ sở y tế hoặc gặp bác sĩ để thăm khám trực tiếp, vì đây chỉ là thông tin tham khảo từ hệ thống."
     )
@@ -137,16 +172,20 @@ def chat_with_bot(question, chat, user):
     score = reranking_model.predict(pairs)
 
     rag_chain = (
-        {'context':lambda _: format_docs(docs), 'question': RunnablePassthrough()}
+        # {'context':lambda _: format_docs(docs), 'question': RunnablePassthrough()}
+        {'context':lambda _: format_docs([docs[np.where(score==np.max(score))[0][0]]]), 'question': RunnablePassthrough()}
         | prompt_chat(system_instruction, human_instruction)
         | llm
         | StrOutputParser()
     )
 
-    answer = rag_chain.invoke(docs[np.where(score==np.max(score))[0][0]].page_content)
+    answer = rag_chain.invoke(question)
+    print()
+    # print(docs[np.where(score==np.max(score))[0][0]])
     return answer
 
 
 # retriever()
-answer = chat_with_bot('ai có nguy cơ bị liệt nửa người', 'test', 'Phuc')
-print(answer)
+# answer = chat_with_bot('cách phòng ngừa bệnh addison', 'test', 'Minh')
+# print('=============')
+# print(answer)
