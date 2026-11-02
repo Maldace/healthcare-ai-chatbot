@@ -57,14 +57,14 @@ from random import uniform
 #         print(f'Đã viết bài thứ {count} trên tổng 678 bài, chờ {x} giây để viết bài tiếp theo')
 #         sleep(x)
 
-import requests
-from bs4 import BeautifulSoup
+# import requests
+# from bs4 import BeautifulSoup
 
 
-url = 'https://www.vinmec.com/vie/tra-cuu-benh/d/page_1'
-reqs = requests.get(url)
-soup = BeautifulSoup(reqs.text, 'html.parser')
+# url = 'https://www.vinmec.com/vie/tra-cuu-benh/d/page_1'
+# reqs = requests.get(url)
+# soup = BeautifulSoup(reqs.text, 'html.parser')
 
-urls = []
-for link in soup.find_all('a'):
-    print(link.get('href'))
+# urls = []
+# for link in soup.find_all('a'):
+#     print(link.get('href'))

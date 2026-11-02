@@ -1,17 +1,20 @@
 from langchain_text_splitters import MarkdownHeaderTextSplitter
 from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_classic.vectorstores import FAISS
-# from langchain_community.vectorstores.utils import DistanceStrategy
 from langchain_ollama import ChatOllama
 from langchain_community.retrievers import BM25Retriever
 from langchain_classic.retrievers import EnsembleRetriever
-from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate, MessagesPlaceholder
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables.passthrough import RunnablePassthrough
-# from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
+from langchain_core.chat_history import InMemoryChatMessageHistory, BaseChatMessageHistory
+from langchain_core.runnables import ConfigurableFieldSpec
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.messages import HumanMessage, AIMessage
 from sentence_transformers import CrossEncoder
 import numpy as np
 import json
+import re
 
 with open('document.txt', encoding='utf-8') as f:
     text = f.read()
@@ -78,28 +81,9 @@ def retriever():
         retrievers = [bm25_retriever, vectorstore_retriever],
         weights = [0.3, 0.7]
     )
-    # chat = 'cách phòng ngừa bệnh addison'
-    # print('bm25')
-    # bm25 = bm25_retriever.invoke(chat)
-    # for num, i in enumerate(bm25):
-    #    print(num)
-    #    print(i.page_content)
-    #    print('===========')
-    
-    # print('vec')
-    # vec = vectorstore_retriever.invoke(chat)
-    # for num,  i in enumerate(vec):
-    #     print(num)
-    #     print(i.page_content)
-    #     print('===========')
-    # bm25 = retrievers.invoke(chat)
-    # for num, i in enumerate(bm25):
-    #     print(num)
-    #     print(i.page_content)
-    #     print('===========')
     return retrievers
 
-def chat_with_bot(question, chat, user):
+def get_answer(question, chat, user):
     system_instruction = (
         "Bạn là một Chatbot tư vấn y tế thông minh và thân thiện.\n"
         "Nhiệm vụ của bạn là đọc thông tin được cung cấp để diễn đạt lại thành câu trả lời tự nhiên cho người dùng về vấn đề họ gặp phải.\n\n"
@@ -150,7 +134,6 @@ def chat_with_bot(question, chat, user):
             ("human", question)
         ]
 
-    # query = 'tôi bị tiêu chảy, buồn nôn, đau bụng, đầy hơi là bệnh gì'
     
     ask_diseases =json.loads((llm.invoke(messages)).content)
     if ask_diseases == 'Câu hỏi không liên quan đến y tế':
@@ -172,7 +155,6 @@ def chat_with_bot(question, chat, user):
     score = reranking_model.predict(pairs)
 
     rag_chain = (
-        # {'context':lambda _: format_docs(docs), 'question': RunnablePassthrough()}
         {'context':lambda _: format_docs([docs[np.where(score==np.max(score))[0][0]]]), 'question': RunnablePassthrough()}
         | prompt_chat(system_instruction, human_instruction)
         | llm
@@ -180,12 +162,129 @@ def chat_with_bot(question, chat, user):
     )
 
     answer = rag_chain.invoke(question)
-    print()
-    # print(docs[np.where(score==np.max(score))[0][0]])
     return answer
 
+store = {}
 
-# retriever()
-# answer = chat_with_bot('cách phòng ngừa bệnh addison', 'test', 'Minh')
-# print('=============')
-# print(answer)
+def get_by_session_id(chat: str, user: str)-> BaseChatMessageHistory:
+    if (chat, user) not in store:
+        store[(chat, user)] = InMemoryChatMessageHistory()
+        with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.txt", "r", encoding="utf-8") as f:
+            content = f.read()
+        chat_history = re.split(r'(?i)(?=\b(?:user|bot):)', content, flags=re.MULTILINE)
+        chat_history = [item.strip() for item in chat_history if item.strip()]
+        for text in chat_history[-10:]:
+            role, msg = text.split(':', 1)
+            if role=='User':
+                store[(chat, user)].add_user_message(msg)
+            else:
+                store[(chat, user)].add_ai_message(msg)
+    return store[(chat, user)]
+
+def chat(question, chat, user):
+    prompt_text =(
+    """
+    Bạn là hệ thống viết lại câu hỏi cho chatbot RAG tiếng Việt về y tế.
+    
+    Dựa vào lịch sử trò chuyện và câu hỏi mới nhất của người dùng,
+    hãy xác định những đối tượng được nhắc đến gián tiếp như:
+    "nó", "bệnh đó", "bệnh này", "loại bệnh trên", "vậy thì",...
+
+    Nếu câu hỏi mới nhất có tham chiếu đến một đối tượng trong lịch sử,
+    hãy thay thế tham chiếu đó bằng tên đối tượng cụ thể để tạo thành
+    một câu hỏi độc lập bằng tiếng Việt.
+
+    Giữ nguyên ý nghĩa và mục đích của câu hỏi.
+    Không tự ý thêm thông tin hoặc giả định bệnh lý.
+    Nếu câu hỏi đã độc lập thì giữ nguyên.
+
+    KHÔNG trả lời câu hỏi.
+    CHỈ trả về câu hỏi độc lập, không giải thích.
+    
+    VÍ DỤ:
+
+    Lịch sử:
+    User: ù tai là gì
+    Bot: Ù tai là tiếng kêu không mong muốn có nguồn gốc
+    từ chính hệ thống thính giác hoặc các cơ quan lân cận.
+
+    Câu hỏi mới:
+    Bệnh đó có triệu chứng gì?
+
+    Kết quả:
+    Bệnh ù tai có những triệu chứng gì?
+
+    ---
+
+    Lịch sử:
+    User: Bệnh tiểu đường là gì?
+    Bot: Bệnh tiểu đường là một rối loạn chuyển hóa glucose.
+
+    Câu hỏi mới:
+    Người mắc bệnh này nên ăn gì?
+
+    Kết quả:
+    Người mắc bệnh tiểu đường nên ăn gì?
+
+    ---
+
+    Lịch sử:
+    User: Tôi muốn tìm hiểu về bệnh cao huyết áp.
+    Bot: Bệnh cao huyết áp là tình trạng huyết áp tăng cao.
+
+    Câu hỏi mới:
+    Nguyên nhân của nó là gì?
+
+    Kết quả:
+    Nguyên nhân gây bệnh cao huyết áp là gì?
+
+    ---
+    """
+    )
+    
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", prompt_text),
+        MessagesPlaceholder(variable_name="history"),
+        ("human", "{question}"),
+    ])
+    
+    chain = (
+        prompt
+        | llm
+        | StrOutputParser()
+    )
+    
+    chain_with_history = RunnableWithMessageHistory(
+        chain,
+        get_by_session_id,
+        input_messages_key="question",
+        history_messages_key="history",
+        history_factory_config=[
+            ConfigurableFieldSpec(
+                id="chat",
+                annotation=str,
+                name="Chat name",
+                description="Unique identifier for the chat.",
+                default="",
+                is_shared=True,
+            ),
+            ConfigurableFieldSpec(
+                id="user",
+                annotation=str,
+                name="Username",
+                description="Unique identifier for the user.",
+                default="",
+                is_shared=True,
+            ),
+        ],
+    )
+    
+    # return(chain_with_history.invoke({'question':question}, config = {"configurable": { "chat": chat, "user": user}}))
+    # return(chain_with_history.invoke({'question':question}, config = {"configurable": { "session_id": "foo"}}))
+    
+    return get_answer(chain_with_history.invoke({'question':question}, config = {"configurable": {"chat": chat, "user": user}}), chat, user)
+
+# print(chat('nó có lây không', 'text', 'Minh'))
+# print(chat('cosine là gì', 'test', 'Minh'))
+# print(chat('nghịch đảo của nó là gì', 'test', 'Minh'))
+# print(store)

@@ -302,7 +302,7 @@ def handle_message(data: dict):
                     'timestamp': timestamp
                 }, room=room)
                     
-            bot_answer = chatbot.chat_with_bot(message, room, username)
+            bot_answer = chatbot.chat(message, room, username)
             emit('message', {
                     'msg': bot_answer,
                     'username': 'Bot',
