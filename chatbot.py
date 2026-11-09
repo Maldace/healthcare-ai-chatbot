@@ -39,14 +39,14 @@ vectorstore = FAISS.load_local(
 )
 
 llm = ChatOllama(
-    model="qwen2.5:3b",
+    model="qwen3:4b",
     num_ctx=4096,
     num_predict=2048,
-    num_gpu=0,
     temperature=0
 )
 
 # chat = HuggingFaceEndpoint(
+    
 #     repo_id='Qwen/Qwen2.5-3B',
 #     task="text-generation",
 #     max_new_tokens=2048,
@@ -72,10 +72,10 @@ def prompt_chat(x, y):
 
 def retriever():
     bm25_retriever = BM25Retriever.from_documents(chunks)
-    bm25_retriever.k = 20
+    bm25_retriever.k = 15
     vectorstore_retriever = vectorstore.as_retriever(
         search_type = 'similarity',
-        search_kwargs = {'k':20}
+        search_kwargs = {'k':15}
     )
     retrievers = EnsembleRetriever(
         retrievers = [bm25_retriever, vectorstore_retriever],
@@ -83,73 +83,28 @@ def retriever():
     )
     return retrievers
 
-def get_answer(question, chat, user):
+def format_docs(documents):
+    return "\n\n".join(doc.page_content for doc in documents)
+
+def get_answer(question):
     system_instruction = (
         "Bạn là một Chatbot tư vấn y tế thông minh và thân thiện.\n"
-        "Nhiệm vụ của bạn là đọc thông tin được cung cấp để diễn đạt lại thành câu trả lời tự nhiên cho người dùng về vấn đề họ gặp phải.\n\n"
+        "Nhiệm vụ của bạn là đọc thông tin được cung cấp để diễn đạt lại thành câu trả lời tự nhiên cho người dùng về vấn đề họ gặp phải bằng tiếng Việt.\n\n"
+        
         
         "QUY TẮC PHẢN HỒI:\n"
         "- Sử dụng ngôn ngữ ân cần, mạch lạc giống một chuyên viên y tế (ví dụ: 'Qua các thông tin bạn chia sẻ, hệ thống nhận thấy...').\n"
         "- Chỉ đưa ra câu trả lời dựa trên tài liệu được cung cấp, không bớt, không suy luận thêm, không dùng kiến thức đã được huấn luyện sẵn từ trước để trả lời.\n"
         "- Triển khai mỗi ý nằm ổ một dòng, không đưa câu trả lời lên một dòng duy nhất.\n"
         "- Luôn kết thúc bằng một lời khuyên người dùng nên đến các cơ sở y tế hoặc gặp bác sĩ để thăm khám trực tiếp, vì đây chỉ là thông tin tham khảo từ hệ thống."
+        "/no_think"
     )
 
     human_instruction = (
         "Báo cáo kết quả đối chiếu từ hệ thống Python:\n{context}\n\n"
         "Câu hỏi gốc của người dùng: {question}"
     )
-    
-    messages = [
-            (
-                "system",
-                """
-        Bạn là bộ trích xuất tên bệnh lý từ câu hỏi của người dùng.
-    
-        YÊU CẦU:
-    
-        - Chỉ lấy đúng cụm từ về căn bệnh xuất hiện trong câu hỏi.
-        - Không được thay đổi từ ngữ.
-        - Không được diễn giải.
-        - Không được sửa lỗi chính tả.
-        - Không được dùng từ đồng nghĩa.
-        - Phải sao chép nguyên văn từ câu hỏi.
-    
-        Ví dụ:
-    
-        Câu hỏi:
-        Bệnh cảm lạnh thông thường và dị ứng là bệnh gì?
-    
-        Kết quả:
-        ["cảm lạnh thông thường", "dị ứng"]
-    
-        Định dạng đầu ra PHẢI LÀ một JSON array:
-        - Nếu có tên bệnh:
-        ["tên bệnh 1", "tên bệnh 2", ...]
-    
-        - Nếu không có tên bệnh:
-        "Câu hỏi không liên quan đến y tế"
-        """
-            ),
-            ("human", question)
-        ]
-
-    
-    ask_diseases =json.loads((llm.invoke(messages)).content)
-    if ask_diseases == 'Câu hỏi không liên quan đến y tế':
-        return ask_diseases
-    ask_diseases = [text.lower().strip() for text in ask_diseases]
-    with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "r", encoding='utf-8') as f:
-        json_data = json.load(f)
-    json_data['last_diseases'] = ask_diseases
-    json_str = json.dumps(json_data, ensure_ascii=False, indent=4)
-    with open(f"../chatbot_ai_user_and_history/user_and_history/{user}/{chat}.json", "w", encoding='utf-8') as f:
-        f.write(json_str)
-
     docs = retriever().invoke(question)
-
-    def format_docs(documents):
-        return "\n\n".join(doc.page_content for doc in documents)
 
     pairs = [(question, doc.page_content) for doc in docs]
     score = reranking_model.predict(pairs)
@@ -184,64 +139,99 @@ def get_by_session_id(chat: str, user: str)-> BaseChatMessageHistory:
 def chat(question, chat, user):
     prompt_text =(
     """
-    Bạn là hệ thống viết lại câu hỏi cho chatbot RAG tiếng Việt về y tế.
+    Bạn là hệ thống viết lại câu hỏi về y tế dựa trên lịch sử trò chuyện.
+
+    NHIỆM VỤ:
+    Tạo một câu hỏi độc lập từ câu hỏi mới nhất của người dùng bằng tiếng Việt.
+
+    QUY TẮC BẮT BUỘC:
+
+    1. Đọc lịch sử để xác định chủ đề hoặc đối tượng
+    mà người dùng đang đề cập đến.
+
+    2. Nếu câu hỏi chứa các cụm từ tham chiếu như:
+    "nó", "bệnh này", "bệnh đó", "loại bệnh trên",
+    hãy thay thế các cụm từ tham chiếu đó bằng đối tượng 
+    cụ thể đã được đề cập trong lịch sử gần nhất có liên quan.
+
+    3. Ưu tiên đối tượng được người dùng hỏi đến trong
+    các lượt hội thoại trước đó.
+
+    4. TUYỆT ĐỐI KHÔNG tự tạo tên bệnh hoặc đối tượng
+    không xuất hiện trong lịch sử.
+
+    5. Không sử dụng kiến thức bên ngoài để suy đoán
+    đối tượng mà người dùng đang đề cập.
+
+    6. Nếu không xác định chắc chắn đối tượng được nhắc đến,
+    hãy giữ nguyên câu hỏi ban đầu.
+
+    7. Giữ nguyên mục đích và ý nghĩa câu hỏi.
+    Không trả lời câu hỏi.
     
-    Dựa vào lịch sử trò chuyện và câu hỏi mới nhất của người dùng,
-    hãy xác định những đối tượng được nhắc đến gián tiếp như:
-    "nó", "bệnh đó", "bệnh này", "loại bệnh trên", "vậy thì",...
+    8. Nếu câu hỏi không liên quan đến y tế, 
+    trả lời: Câu hỏi không liên quan đến y tế
 
-    Nếu câu hỏi mới nhất có tham chiếu đến một đối tượng trong lịch sử,
-    hãy thay thế tham chiếu đó bằng tên đối tượng cụ thể để tạo thành
-    một câu hỏi độc lập bằng tiếng Việt.
-
-    Giữ nguyên ý nghĩa và mục đích của câu hỏi.
-    Không tự ý thêm thông tin hoặc giả định bệnh lý.
-    Nếu câu hỏi đã độc lập thì giữ nguyên.
-
-    KHÔNG trả lời câu hỏi.
-    CHỈ trả về câu hỏi độc lập, không giải thích.
+    Trả về câu hỏi được viết lại.
     
-    VÍ DỤ:
-
-    Lịch sử:
-    User: ù tai là gì
-    Bot: Ù tai là tiếng kêu không mong muốn có nguồn gốc
-    từ chính hệ thống thính giác hoặc các cơ quan lân cận.
-
-    Câu hỏi mới:
-    Bệnh đó có triệu chứng gì?
-
-    Kết quả:
-    Bệnh ù tai có những triệu chứng gì?
-
-    ---
-
-    Lịch sử:
-    User: Bệnh tiểu đường là gì?
-    Bot: Bệnh tiểu đường là một rối loạn chuyển hóa glucose.
-
-    Câu hỏi mới:
-    Người mắc bệnh này nên ăn gì?
-
-    Kết quả:
-    Người mắc bệnh tiểu đường nên ăn gì?
-
-    ---
-
-    Lịch sử:
-    User: Tôi muốn tìm hiểu về bệnh cao huyết áp.
-    Bot: Bệnh cao huyết áp là tình trạng huyết áp tăng cao.
-
-    Câu hỏi mới:
-    Nguyên nhân của nó là gì?
-
-    Kết quả:
-    Nguyên nhân gây bệnh cao huyết áp là gì?
-
-    ---
-    """
+    /no_think
+    """    
     )
     
+    messages = [
+        (
+            "system",
+            """
+    Bạn là bộ trích xuất triệu chứng bệnh lý và tên bệnh từ câu hỏi của người dùng.
+    
+    YÊU CẦU:
+
+    - Chỉ lấy đúng cụm từ xuất hiện trong câu hỏi.
+    - Không được thay đổi từ ngữ.
+    - Không được diễn giải.
+    - Không được sửa lỗi chính tả.
+    - Không được dùng từ đồng nghĩa.
+    - Phải sao chép nguyên văn từ câu hỏi.
+
+    Ví dụ:
+
+    Câu hỏi:
+    Tôi bị tức ngực và khó thở là bệnh gì?
+
+    Kết quả:
+    ["tức ngực","khó thở"]
+    
+    ------------
+    
+    Câu hỏi:
+    Tiểu đường là bệnh gì?
+
+    Kết quả:
+    ["tiểu đường"]
+
+    Định dạng đầu ra PHẢI LÀ một JSON array:
+    - Nếu có triệu chứng hoặc tên bệnh:
+    ["triệu chứng 1", "triệu chứng 2", ...]
+
+    - Nếu câu hỏi không liên quan đến y tế:
+    ["Câu hỏi không liên quan đến y tế"]
+    """
+        ),
+        ("human", question)
+    ]
+    
+    # ask_diseases =(llm.invoke(messages)).content
+    # ask_diseases =json.loads((llm.invoke(messages)).content)
+    # if ask_diseases == 'Câu hỏi không liên quan đến y tế':
+    #     return ask_diseases
+    if (re.search(r"\bbị bệnh\b", question) or (re.search(r"\bbị\b", question) and re.search(r"\bbệnh gì\b", question)) or re.search(r"\bbị gì\b", question)):
+        ask_diseases =json.loads((llm.invoke(messages)).content)
+        if len(ask_diseases) < 3:
+            return 'Không đủ dữ kiện để kết luận, vui lòng cung cấp từ 3 triệu chứng trở lên'
+        else:
+            return get_answer(question)
+            # return len(ask_diseases)
+    # return question
     prompt = ChatPromptTemplate.from_messages([
         ("system", prompt_text),
         MessagesPlaceholder(variable_name="history"),
@@ -281,10 +271,13 @@ def chat(question, chat, user):
     
     # return(chain_with_history.invoke({'question':question}, config = {"configurable": { "chat": chat, "user": user}}))
     # return(chain_with_history.invoke({'question':question}, config = {"configurable": { "session_id": "foo"}}))
-    
-    return get_answer(chain_with_history.invoke({'question':question}, config = {"configurable": {"chat": chat, "user": user}}), chat, user)
+    rewrite_question = chain_with_history.invoke({'question':question}, config = {"configurable": {"chat": chat, "user": user}})
+    if rewrite_question == 'Câu hỏi không liên quan đến y tế':
+        return rewrite_question
+    return get_answer(rewrite_question)
 
-# print(chat('nó có lây không', 'text', 'Minh'))
+# print(chat('ù tai có triệu chứng gì', 'test', 'Minh'))
+print(chat('tôi bị ho, sốt, khó thở là bệnh gì','test','Minh'))
 # print(chat('cosine là gì', 'test', 'Minh'))
 # print(chat('nghịch đảo của nó là gì', 'test', 'Minh'))
 # print(store)
