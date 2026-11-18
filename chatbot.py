@@ -15,6 +15,7 @@ from sentence_transformers import CrossEncoder
 import numpy as np
 import json
 import re
+import time
 
 with open('document.txt', encoding='utf-8') as f:
     text = f.read()
@@ -39,10 +40,13 @@ vectorstore = FAISS.load_local(
 )
 
 llm = ChatOllama(
-    model="qwen3:4b",
-    num_ctx=4096,
-    num_predict=2048,
-    temperature=0
+    model="hoangquan456/qwen3-nothink:4b",
+    num_ctx=1024,
+    num_predict=256,
+    temperature=0,
+    reasoning = False,
+    keep_alive='30m',
+    num_gpu=0
 )
 
 # chat = HuggingFaceEndpoint(
@@ -60,7 +64,8 @@ reranking_model = CrossEncoder(
     Bạn là công cụ sắp xếp câu hỏi và tài liệu về y tế.
     Hãy sắp xếp các cặp câu hỏi và tài liệu được đưa theo thứ tự giảm dần, ưu tiên tài liệu liên quan nhất đến câu hỏi.
     """},
-    default_prompt_name='instruction'            
+    default_prompt_name='instruction',
+    device='cuda'       
     )
 
 def prompt_chat(x, y):
@@ -97,7 +102,6 @@ def get_answer(question):
         "- Chỉ đưa ra câu trả lời dựa trên tài liệu được cung cấp, không bớt, không suy luận thêm, không dùng kiến thức đã được huấn luyện sẵn từ trước để trả lời.\n"
         "- Triển khai mỗi ý nằm ổ một dòng, không đưa câu trả lời lên một dòng duy nhất.\n"
         "- Luôn kết thúc bằng một lời khuyên người dùng nên đến các cơ sở y tế hoặc gặp bác sĩ để thăm khám trực tiếp, vì đây chỉ là thông tin tham khảo từ hệ thống."
-        "/no_think"
     )
 
     human_instruction = (
@@ -117,6 +121,29 @@ def get_answer(question):
     )
 
     answer = rag_chain.invoke(question)
+#     rag_chain = (  # Khởi tạo chuỗi RAG
+#     {  # Tạo dữ liệu đầu vào cho prompt
+#         'context': lambda _: format_docs([docs[np.argmax(score)]]),  # Lấy tài liệu có điểm reranking cao nhất
+#         'question': RunnablePassthrough()  # Truyền nguyên câu hỏi vào prompt
+#     }
+#     | prompt_chat(system_instruction, human_instruction)  # Kết hợp system prompt và human prompt
+#     | llm  # Gọi LLM trực tiếp, chưa dùng StrOutputParser
+# )
+
+#     response = rag_chain.invoke(question)  # Nhận kết quả AIMessage từ LLM
+
+#     print("========== CONTENT ==========")  # In tiêu đề nội dung
+#     print(response.content)  # In nội dung model trả về
+
+#     print("\n========== ADDITIONAL KWARGS ==========")  # In tiêu đề thông tin bổ sung
+#     print(response.additional_kwargs)  # Kiểm tra reasoning có nằm trong additional_kwargs không
+
+#     print("\n========== RESPONSE METADATA ==========")  # In tiêu đề metadata
+#     print(response.response_metadata)  # Kiểm tra metadata của Ollama
+
+#     print("\n========== THINKING ==========")  # In tiêu đề trường thinking
+#     print(getattr(response, "thinking", None))  # Kiểm tra trường thinking nếu phiên bản hỗ trợ
+#     print("\n========== Response ==========")
     return answer
 
 store = {}
@@ -137,6 +164,7 @@ def get_by_session_id(chat: str, user: str)-> BaseChatMessageHistory:
     return store[(chat, user)]
 
 def chat(question, chat, user):
+    # start = time.time()
     prompt_text =(
     """
     Bạn là hệ thống viết lại câu hỏi về y tế dựa trên lịch sử trò chuyện.
@@ -173,8 +201,6 @@ def chat(question, chat, user):
     trả lời: Câu hỏi không liên quan đến y tế
 
     Trả về câu hỏi được viết lại.
-    
-    /no_think
     """    
     )
     
@@ -272,12 +298,30 @@ def chat(question, chat, user):
     # return(chain_with_history.invoke({'question':question}, config = {"configurable": { "chat": chat, "user": user}}))
     # return(chain_with_history.invoke({'question':question}, config = {"configurable": { "session_id": "foo"}}))
     rewrite_question = chain_with_history.invoke({'question':question}, config = {"configurable": {"chat": chat, "user": user}})
+    # time.sleep(1)
+    # end = time.time()
+
+    # print(f"Total runtime of the program is {end - start} seconds")
     if rewrite_question == 'Câu hỏi không liên quan đến y tế':
         return rewrite_question
     return get_answer(rewrite_question)
 
+
+
 # print(chat('ù tai có triệu chứng gì', 'test', 'Minh'))
-print(chat('tôi bị ho, sốt, khó thở là bệnh gì','test','Minh'))
+
+# import time
+
+# start = time.time()
+
+
+# print(chat('bệnh đó có triệu chứng gì', 'test', 'Minh'))
+
+# time.sleep(1)
+# end = time.time()
+
+# print(f"Total runtime of the program is {end - start} seconds")
+# print(chat('tôi bị ho, sốt, khó thở là bệnh gì','test','Minh'))
 # print(chat('cosine là gì', 'test', 'Minh'))
-# print(chat('nghịch đảo của nó là gì', 'test', 'Minh'))
+# print(chat('trầm cảm là gì', 'text', 'Minh'))
 # print(store)
