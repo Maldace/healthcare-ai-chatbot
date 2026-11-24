@@ -126,6 +126,12 @@ h2 {
     /* gap: 12px; */
 }
 
+.voiceButton{
+    height: 20px;
+    width: 20px;
+    padding: 0px;
+}
+
 
 .chat-contain:hover .btn{
     background: var(--light);
@@ -155,6 +161,8 @@ h2 {
     padding: 20px;
     overflow-y: auto;
     background: white;
+    /* display: flex;
+    flex-direction: column; */
 }
 
 .message { 

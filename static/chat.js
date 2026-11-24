@@ -12,13 +12,15 @@ socket.on('message', (data) => {
 	addMessage(
 		data.username,
 		data.msg,
-		data.username === username ? 'own' : 'other'
+		data.sender === username ? 'own' : 'other',
+		data.sender,
+		data.room
 	);
 });
 
-socket.on('status', (data) => {
-	addMessage('System', data.msg, 'system');
-});
+// socket.on('status', (data) => {
+// 	addMessage('System', data.msg, 'system');
+// });
 
 // socket.on('active_users', (data) => {
 // 	const userList = document.getElementById('active-users');
@@ -33,21 +35,73 @@ socket.on('status', (data) => {
 // 		.join('');
 // });
 
-function addMessage(sender, message, type) {
+function addMessage(user, message, type, sender, room) {
 	if (!roomMessages[currentRoom]) {
 		roomMessages[currentRoom] = [];
 	}
-	roomMessages[currentRoom].push({ sender, message, type });
+	roomMessages[currentRoom].push({ user, message, type, sender });
 
 	const chat = document.getElementById('chat');
 	const messageDiv = document.createElement('div');
 	messageDiv.className = `message ${type}`;
 	// messageDiv.textContent = `${sender}: ${message}`;
 	messageDiv.textContent = `${message}`;
-
-	chat.appendChild(messageDiv);
+	chat.appendChild(messageDiv)
+	if (room != 'General'){
+		const voiceButton = document.createElement('button')
+		voiceButton.className = 'voiceButton'
+		const voiceIcon = document.createElement('i')
+		voiceIcon.className = 'fa fa-volume-up'
+		if (sender == 'Bot'){
+			voiceButton.style.backgroundColor = '#ecf0f1'
+			voiceButton.style.color = 'black'
+		}
+		else{
+			voiceButton.style.marginLeft = '1040px'
+		}
+		voiceButton.onclick = function() {createAudio(message, user, voiceIcon)}
+		voiceButton.appendChild(voiceIcon)
+		chat.appendChild(voiceButton)
+	}
 	chat.scrollTop = chat.scrollHeight;
 }
+
+let pendingVoiceIcon = null
+function createAudio(message, user, voiceIcon){
+	pendingVoiceIcon = voiceIcon; 
+	voiceIcon.className = 'fa fa-spinner fa-spin';
+	// console.log(user)
+	socket.emit('createAudio',{
+		msg: message,
+		user: user
+	})
+}
+
+let currentVoiceIcon = null
+let audio = null
+
+socket.on('readMessage', function(data) {
+	if (audio && !audio.paused){
+		audio.pause()
+		audio.currentTime = 0
+		currentVoiceIcon.className = 'fa fa-volume-up'
+		return
+	}
+	const audioUrl = data.filepath + '?t=' + Date.now();
+	audio = new Audio(audioUrl)
+	currentAudio = audio
+	if (currentVoiceIcon) { 
+        currentVoiceIcon.className = 'fa fa-volume-up';
+    }
+	currentVoiceIcon = pendingVoiceIcon;
+    currentVoiceIcon.className = 'fa fa-stop';
+	audio.play()
+	audio.onended = function() {
+        currentVoiceIcon.className = 'fa fa-volume-up';
+        currentVoiceIcon = null;
+    };
+
+})
 
 function sendMessage() {
 	const input = document.getElementById('message');
@@ -130,8 +184,14 @@ function editRoomName(){
 	location.reload()
 }
 
-function deleteRoom(room){
-	socket.emit('delete',{room: room})
+function openDeleteDialog(room){
+	currentName = room
+	document.getElementById('delete-dialog').showModal()
+	// console.log(currentName)
+}
+
+function deleteRoom(){
+	socket.emit('delete',{room: currentName})
 	location.reload()
 }
 

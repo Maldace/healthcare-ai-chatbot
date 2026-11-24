@@ -45,7 +45,7 @@
 					</div>
 					<button class="btn" onclick="openEditDialog('{{ room }}')" ><i class="fa fa-edit"></i></button>
 					
-					<button class="btn" onclick="deleteRoom('{{ room }}')"><i class="fa fa-trash"></i></button>
+					<button class="btn" onclick="openDeleteDialog('{{ room }}')"><i class="fa fa-trash"></i></button>
 					<!-- </div> -->
 					</div>
 						{% endif %}
@@ -59,6 +59,14 @@
 
 						<button onclick="editRoomName()">Rename</button>
 						<button onclick="document.getElementById('edit-dialog').close()">Cancel</button>
+					</dialog>
+					<dialog id="delete-dialog">
+						<h3>Delete the chat?</h3>
+
+						<br><br>
+
+						<button onclick="deleteRoom()">Yes</button>
+						<button onclick="document.getElementById('delete-dialog').close()">No</button>
 					</dialog>
 				</div>
 			</div>

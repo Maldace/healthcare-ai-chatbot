@@ -6,11 +6,13 @@ import json
 from datetime import datetime, timedelta
 from typing import Dict
 
-from flask import Flask, render_template, request, session, redirect, flash
+from flask import Flask, render_template, request, session, redirect, flash, send_from_directory
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 import pyodbc
+
+from gtts import gTTS
 
 import chatbot
 
@@ -218,33 +220,13 @@ def on_join(data: dict):
         chat = re.split(r'(?i)(?=\b(?:user|bot):)', content, flags=re.MULTILINE)
         chat = [item.strip() for item in chat if item.strip()]
         for text in chat:
-            # if text.startswith(f'{username}:'):
-            #     emit('message', {
-            #         'msg': text.replace(f'{username}:', ''),
-            #         'username': username,
-            #         'room': room,
-            #         'timestamp': datetime.now().isoformat()
-            #     }, room=room)
-            # elif text.startswith('Bot:'):
-            #     emit('message', {
-            #         'msg': text.replace('Bot:', ''),
-            #         'username': 'Bot',
-            #         'room': room,
-            #         'timestamp': datetime.now().isoformat()
-            #     }, room=room)
             sender, msg = text.split(':', 1)
-            # print(sender)
-            # emit('message', {
-            #     'msg': msg,
-            #     'username': sender,
-            #     'room': room,
-            #     'timestamp': datetime.now().isoformat()
-            #     }, room=room)
             if sender==('Bot'):
                 emit('message', {
                     'msg': msg,
-                    'username': 'Bot',
+                    'username': username,
                     'room': room,
+                    'sender': 'Bot',
                     'timestamp': datetime.now().isoformat()
                 }, room=room)
             else:
@@ -252,6 +234,7 @@ def on_join(data: dict):
                     'msg': msg,
                     'username': username,
                     'room': room,
+                    'sender': username,
                     'timestamp': datetime.now().isoformat()
                 }, room=room)
         
@@ -270,11 +253,11 @@ def on_leave(data: dict):
         if request.sid in active_users:
             active_users[request.sid].pop('room', None)
         
-        emit('status', {
-            'msg': f'{username} has left the room.',
-            'type': 'leave',
-            'timestamp': datetime.now().isoformat()
-        }, room=room)
+        # emit('status', {
+        #     'msg': f'{username} has left the room.',
+        #     'type': 'leave',
+        #     'timestamp': datetime.now().isoformat()
+        # }, room=room)
         
         logger.info(f"User {username} left room: {room}")
     
@@ -299,6 +282,7 @@ def handle_message(data: dict):
                     'msg': message,
                     'username': username,
                     'room': room,
+                    'sender': username,
                     'timestamp': timestamp
                 }, room=room)
                     
@@ -307,6 +291,7 @@ def handle_message(data: dict):
                     'msg': bot_answer,
                     'username': 'Bot',
                     'room': room,
+                    'sender': 'Bot',
                     'timestamp': timestamp
                 }, room=room)
             
@@ -320,16 +305,41 @@ def handle_message(data: dict):
     
     except Exception as e:
         logger.error(f"Message handling error: {str(e)}")
+        
+@socketio.on('createAudio')
+def createAudio(data):
+    try:
+        message = data['msg']
+        user = data['user']
+        tts = gTTS(text=message, lang='vi')
+        if not os.path.exists(f'static/{user}'):
+            os.makedirs(f'static/{user}')
+        filepath = f"static/{user}/readMessage.mp3"
+        # print(filepath)
+        tts.save(filepath)
+        emit('readMessage',{
+            'filepath': filepath
+        })
+    except Exception as e:
+        logger.error(f"Message reading error: {str(e)}")
+        
+# @app.route('/audio/<user>/<filename>', methods = ['POST'])
+# def createAudio(user, filename):
+#     try:
+#         message = request.form.get('mess')
+#         tts = gTTS(text=message, lang='vi')
+#         filepath = f"../chatbot_ai_user_and_history/user_and_history/{user}/readMessage.mp3"
+#         # filepath = 'D:/chatbot_ai_user_and_history/user_and_history/Minh'
+#         tts.save(filepath)
+#         # folder = os.path.abspath()
+#     except Exception as e:
+#         logger.error(f"Message reading error: {str(e)}")
 
 @socketio.on('create_new_chat')
 def create_chat(data):
     try:
         room = data['roomName']
         username = session['username']
-        json_data = {"last_diseases" : ""}
-        json_str = json.dumps(json_data, indent=4)
-        with open(f"../chatbot_ai_user_and_history/user_and_history/{username}/{room}.json", "w", encoding="utf-8") as f:
-            f.write(json_str)
         with open(f"../chatbot_ai_user_and_history/user_and_history/{username}/{room}.txt", "x", encoding="utf-8"):
             pass
 
@@ -350,7 +360,6 @@ def edit_room_name(data):
         newName = data['newName']
         username = session['username']
         os.rename(f"../chatbot_ai_user_and_history/user_and_history/{username}/{room}.txt",f"../chatbot_ai_user_and_history/user_and_history/{username}/{newName}.txt")
-        os.rename(f"../chatbot_ai_user_and_history/user_and_history/{username}/{room}.json",f"../chatbot_ai_user_and_history/user_and_history/{username}/{newName}.json")
     except Exception as e:
         logger.error(f"Edit room name error: {str(e)}")
 
@@ -360,7 +369,6 @@ def delete_room(data):
         room = data['room']
         username = session['username']
         os.remove(f"../chatbot_ai_user_and_history/user_and_history/{username}/{room}.txt")
-        os.remove(f"../chatbot_ai_user_and_history/user_and_history/{username}/{room}.json")
     except Exception as e:
         logger.error(f"Delete room error: {str(e)}")
 

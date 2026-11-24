@@ -40,7 +40,7 @@ vectorstore = FAISS.load_local(
 )
 
 llm = ChatOllama(
-    model="hoangquan456/qwen3-nothink:4b",
+    model="qwen3:4b-instruct",
     num_ctx=1024,
     num_predict=256,
     temperature=0,
@@ -77,10 +77,10 @@ def prompt_chat(x, y):
 
 def retriever():
     bm25_retriever = BM25Retriever.from_documents(chunks)
-    bm25_retriever.k = 15
+    bm25_retriever.k = 100
     vectorstore_retriever = vectorstore.as_retriever(
         search_type = 'similarity',
-        search_kwargs = {'k':15}
+        search_kwargs = {'k':100}
     )
     retrievers = EnsembleRetriever(
         retrievers = [bm25_retriever, vectorstore_retriever],
@@ -120,30 +120,11 @@ def get_answer(question):
         | StrOutputParser()
     )
 
+    # print(pairs)
+    # print(score)
+
+    print(docs[np.where(score==np.max(score))[0][0]])
     answer = rag_chain.invoke(question)
-#     rag_chain = (  # Khởi tạo chuỗi RAG
-#     {  # Tạo dữ liệu đầu vào cho prompt
-#         'context': lambda _: format_docs([docs[np.argmax(score)]]),  # Lấy tài liệu có điểm reranking cao nhất
-#         'question': RunnablePassthrough()  # Truyền nguyên câu hỏi vào prompt
-#     }
-#     | prompt_chat(system_instruction, human_instruction)  # Kết hợp system prompt và human prompt
-#     | llm  # Gọi LLM trực tiếp, chưa dùng StrOutputParser
-# )
-
-#     response = rag_chain.invoke(question)  # Nhận kết quả AIMessage từ LLM
-
-#     print("========== CONTENT ==========")  # In tiêu đề nội dung
-#     print(response.content)  # In nội dung model trả về
-
-#     print("\n========== ADDITIONAL KWARGS ==========")  # In tiêu đề thông tin bổ sung
-#     print(response.additional_kwargs)  # Kiểm tra reasoning có nằm trong additional_kwargs không
-
-#     print("\n========== RESPONSE METADATA ==========")  # In tiêu đề metadata
-#     print(response.response_metadata)  # Kiểm tra metadata của Ollama
-
-#     print("\n========== THINKING ==========")  # In tiêu đề trường thinking
-#     print(getattr(response, "thinking", None))  # Kiểm tra trường thinking nếu phiên bản hỗ trợ
-#     print("\n========== Response ==========")
     return answer
 
 store = {}
@@ -169,38 +150,37 @@ def chat(question, chat, user):
     """
     Bạn là hệ thống viết lại câu hỏi về y tế dựa trên lịch sử trò chuyện.
 
-    NHIỆM VỤ:
+    **NHIỆM VỤ:**
+
     Tạo một câu hỏi độc lập từ câu hỏi mới nhất của người dùng bằng tiếng Việt.
 
-    QUY TẮC BẮT BUỘC:
+    **QUY TẮC BẮT BUỘC:**
 
-    1. Đọc lịch sử để xác định chủ đề hoặc đối tượng
-    mà người dùng đang đề cập đến.
+    1. Trước tiên, xác định câu hỏi mới nhất có liên quan đến lĩnh vực y tế hay không.
 
-    2. Nếu câu hỏi chứa các cụm từ tham chiếu như:
-    "nó", "bệnh này", "bệnh đó", "loại bệnh trên",
-    hãy thay thế các cụm từ tham chiếu đó bằng đối tượng 
-    cụ thể đã được đề cập trong lịch sử gần nhất có liên quan.
+    2. Nếu câu hỏi liên quan đến y tế, tiếp tục thực hiện nhiệm vụ viết lại câu hỏi. Không được kết luận câu hỏi không liên quan đến y tế chỉ vì nó không đề cập đến chủ đề trong lịch sử trò chuyện.
 
-    3. Ưu tiên đối tượng được người dùng hỏi đến trong
-    các lượt hội thoại trước đó.
+    3. Đọc lịch sử để xác định chủ đề hoặc đối tượng mà người dùng đang đề cập đến.
 
-    4. TUYỆT ĐỐI KHÔNG tự tạo tên bệnh hoặc đối tượng
-    không xuất hiện trong lịch sử.
+    4. Nếu câu hỏi chứa các cụm từ tham chiếu như: "nó", "bệnh này", "bệnh đó", "loại bệnh trên", hãy thay thế các cụm từ tham chiếu đó bằng đối tượng cụ thể đã được đề cập trong lịch sử gần nhất có liên quan.
 
-    5. Không sử dụng kiến thức bên ngoài để suy đoán
-    đối tượng mà người dùng đang đề cập.
+    5. Ưu tiên đối tượng được người dùng hỏi đến trong các lượt hội thoại trước đó.
 
-    6. Nếu không xác định chắc chắn đối tượng được nhắc đến,
-    hãy giữ nguyên câu hỏi ban đầu.
+    6. TUYỆT ĐỐI KHÔNG tự tạo tên bệnh hoặc đối tượng không xuất hiện trong lịch sử.
 
-    7. Giữ nguyên mục đích và ý nghĩa câu hỏi.
-    Không trả lời câu hỏi.
-    
-    8. Nếu câu hỏi không liên quan đến y tế, 
-    trả lời: Câu hỏi không liên quan đến y tế
+    7. Không sử dụng kiến thức bên ngoài để suy đoán đối tượng mà người dùng đang đề cập.
 
-    Trả về câu hỏi được viết lại.
+    8. Nếu không xác định chắc chắn đối tượng được nhắc đến, hãy giữ nguyên câu hỏi ban đầu.
+
+    9. Nếu câu hỏi đề cập đến một bệnh hoặc chủ đề y tế mới, không phụ thuộc vào lịch sử trò chuyện, hãy giữ nguyên câu hỏi ban đầu.
+
+    10. Giữ nguyên mục đích và ý nghĩa câu hỏi. Không trả lời câu hỏi.
+
+    11. Nếu câu hỏi không liên quan đến y tế, trả lời chính xác: Câu hỏi không liên quan đến y tế.
+
+    **ĐẦU RA:**
+
+    Chỉ trả về câu hỏi được viết lại hoặc chuỗi "Câu hỏi không liên quan đến y tế". Không giải thích thêm.
     """    
     )
     
@@ -238,9 +218,6 @@ def chat(question, chat, user):
     Định dạng đầu ra PHẢI LÀ một JSON array:
     - Nếu có triệu chứng hoặc tên bệnh:
     ["triệu chứng 1", "triệu chứng 2", ...]
-
-    - Nếu câu hỏi không liên quan đến y tế:
-    ["Câu hỏi không liên quan đến y tế"]
     """
         ),
         ("human", question)
@@ -302,7 +279,7 @@ def chat(question, chat, user):
     # end = time.time()
 
     # print(f"Total runtime of the program is {end - start} seconds")
-    if rewrite_question == 'Câu hỏi không liên quan đến y tế':
+    if rewrite_question == 'Câu hỏi không liên quan đến y tế.':
         return rewrite_question
     return get_answer(rewrite_question)
 
@@ -321,7 +298,4 @@ def chat(question, chat, user):
 # end = time.time()
 
 # print(f"Total runtime of the program is {end - start} seconds")
-# print(chat('tôi bị ho, sốt, khó thở là bệnh gì','test','Minh'))
-# print(chat('cosine là gì', 'test', 'Minh'))
-# print(chat('trầm cảm là gì', 'text', 'Minh'))
-# print(store)
+# print(chat('bệnh trĩ là gì', '123', 'Phuc'))
